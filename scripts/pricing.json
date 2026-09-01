@@ -25,6 +25,7 @@
     "image_generation": 0.03,
     "caricature_generation": 0.05,
     "tts": 0.08,
+    "topic_analysis": 0.005,
     "unknown": 0.01
   }
 }

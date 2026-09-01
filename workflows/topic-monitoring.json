@@ -1,0 +1,71 @@
+{
+  "name": "Topic monitoring (daily)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 7,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd \"$PIPELINE_ROOT\" && .venv/bin/python scripts/collect_topics.py --channel currenttoons"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000002",
+      "name": "Collect currenttoons",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [520, 200]
+    },
+    {
+      "parameters": {
+        "command": "cd \"$PIPELINE_ROOT\" && .venv/bin/python scripts/collect_topics.py --channel second_channel"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000003",
+      "name": "Collect second_channel",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [520, 400]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Collect currenttoons",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Collect second_channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  },
+  "pinData": {},
+  "meta": {
+    "description": "Daily topic intake. Set PIPELINE_ROOT on the n8n host (self-hosted Execute Command). Import this JSON; do not activate until .env and Sheet IDs are real."
+  }
+}

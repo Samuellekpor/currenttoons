@@ -13,5 +13,25 @@
   "background_music_url": "",
   "default_language": "fr",
   "supported_languages": ["fr", "en"],
-  "default_format": "short"
+  "default_format": "short",
+  "topic_analysis_prompt_path": "prompts/currenttoons_topic_analysis.md",
+  "google_sheet_tab": "Sujets",
+  "monitoring": {
+    "provider": "newsapi",
+    "max_topics": 8,
+    "max_requests_per_run": 1,
+    "newsapi": {
+      "language": "fr",
+      "country": "fr",
+      "sort_by": "publishedAt",
+      "page_size": 8,
+      "keywords": [
+        "actualité France",
+        "gouvernement",
+        "économie française",
+        "Assemblée nationale",
+        "politique française"
+      ]
+    }
+  }
 }

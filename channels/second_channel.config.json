@@ -13,5 +13,25 @@
   "background_music_url": "",
   "default_language": "fr",
   "supported_languages": ["fr", "en"],
-  "default_format": "short"
+  "default_format": "short",
+  "topic_analysis_prompt_path": "prompts/second_channel_topic_analysis.md",
+  "google_sheet_tab": "Sujets",
+  "monitoring": {
+    "provider": "web",
+    "max_topics": 8,
+    "collectors": ["rss", "reddit", "google_trends"],
+    "rss_feeds": [
+      "https://www.mindful.org/feed/",
+      "https://www.verywellmind.com/rss"
+    ],
+    "reddit": {
+      "subreddits": ["DecidingToBeBetter", "GetMotivated", "health"],
+      "limit_per_sub": 3
+    },
+    "google_trends": {
+      "geo": "FR",
+      "rss_url": "https://trends.google.com/trending/rss?geo=FR",
+      "limit": 4
+    }
+  }
 }

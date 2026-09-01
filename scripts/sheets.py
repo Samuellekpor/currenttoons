@@ -22,10 +22,50 @@ def _client(credentials_path: str | None = None) -> gspread.Client:
     return gspread.authorize(creds)
 
 
+def open_spreadsheet(sheet_id: str, *, credentials_path: str | None = None):
+    return _client(credentials_path).open_by_key(sheet_id)
+
+
 def open_worksheet(sheet_id: str, tab: str, *, credentials_path: str | None = None):
-    client = _client(credentials_path)
-    spreadsheet = client.open_by_key(sheet_id)
-    return spreadsheet.worksheet(tab)
+    return open_spreadsheet(sheet_id, credentials_path=credentials_path).worksheet(tab)
+
+
+def ensure_headers(
+    sheet_id: str,
+    tab: str,
+    headers: list[str],
+    *,
+    credentials_path: str | None = None,
+):
+    spreadsheet = open_spreadsheet(sheet_id, credentials_path=credentials_path)
+    try:
+        ws = spreadsheet.worksheet(tab)
+    except gspread.WorksheetNotFound:
+        ws = spreadsheet.add_worksheet(title=tab, rows=2000, cols=max(len(headers), 12))
+        ws.append_row(headers, value_input_option="USER_ENTERED")
+        return ws
+    existing = ws.row_values(1)
+    if not existing:
+        ws.append_row(headers, value_input_option="USER_ENTERED")
+        return ws
+    missing = [h for h in headers if h not in existing]
+    if missing:
+        start_col = len(existing) + 1
+        for offset, name in enumerate(missing):
+            ws.update_cell(1, start_col + offset, name)
+    return ws
+
+
+def existing_column_values(
+    sheet_id: str,
+    tab: str,
+    column_name: str,
+    *,
+    credentials_path: str | None = None,
+) -> set[str]:
+    ws = open_worksheet(sheet_id, tab, credentials_path=credentials_path)
+    records = ws.get_all_records()
+    return {str(row.get(column_name, "")).strip() for row in records if row.get(column_name)}
 
 
 def increment_numeric_cell(

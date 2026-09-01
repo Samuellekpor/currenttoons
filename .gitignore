@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+.env
+.env.local
+.env.*.local
+
+/assets_temp/
+/output/
+
+# Local caricature cache (remote bank is source of truth)
+/characters/*
+!/characters/.gitkeep
+
+# Credentials and secrets
+*credentials*.json
+*credentials*.pem
+google-credentials.json
+service-account*.json
+client_secret*.json
+token.json
+*.pem
+*.key
+!*.key.example
+
+.DS_Store
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/

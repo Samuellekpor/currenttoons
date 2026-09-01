@@ -1,0 +1,17 @@
+{
+  "channel_name": "CurrentToons",
+  "google_sheet_id": "REPLACE_WITH_CURRENTTOONS_SHEET_ID",
+  "tone_prompt": "prompts/currenttoons/tone.txt",
+  "script_system_prompt_path": "prompts/currenttoons/script_system.txt",
+  "image_style_prompt_path": "prompts/currenttoons/image_style.txt",
+  "uses_caricatures": true,
+  "elevenlabs_voice_id": {
+    "fr": "REPLACE_WITH_ELEVENLABS_VOICE_ID_FR",
+    "en": "REPLACE_WITH_ELEVENLABS_VOICE_ID_EN"
+  },
+  "tts_provider": "elevenlabs",
+  "background_music_url": "",
+  "default_language": "fr",
+  "supported_languages": ["fr", "en"],
+  "default_format": "short"
+}

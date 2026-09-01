@@ -1,0 +1,30 @@
+{
+  "_comment": "Approximate EUR costs per API call. Update when provider pricing changes. Used only for spreadsheet tracking, not billing.",
+  "currency": "EUR",
+  "usd_to_eur": 0.92,
+  "openai": {
+    "gpt-4o": { "input_per_1k_tokens": 0.0046, "output_per_1k_tokens": 0.0138 },
+    "gpt-4o-mini": { "input_per_1k_tokens": 0.00014, "output_per_1k_tokens": 0.00055 },
+    "dall-e-3_standard_1024": 0.037
+  },
+  "replicate": {
+    "image_generation": 0.03
+  },
+  "fal": {
+    "image_generation": 0.03
+  },
+  "elevenlabs": {
+    "tts_per_1k_chars": 0.12
+  },
+  "newsapi": {
+    "request": 0.0
+  },
+  "defaults": {
+    "script_generation": 0.02,
+    "translation": 0.005,
+    "image_generation": 0.03,
+    "caricature_generation": 0.05,
+    "tts": 0.08,
+    "unknown": 0.01
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "channel_name": "Second Channel",
+  "google_sheet_id": "REPLACE_WITH_SECOND_CHANNEL_SHEET_ID",
+  "tone_prompt": "prompts/second_channel/tone.txt",
+  "script_system_prompt_path": "prompts/second_channel/script_system.txt",
+  "image_style_prompt_path": "prompts/second_channel/image_style.txt",
+  "uses_caricatures": false,
+  "elevenlabs_voice_id": {
+    "fr": "REPLACE_WITH_ELEVENLABS_VOICE_ID_FR",
+    "en": "REPLACE_WITH_ELEVENLABS_VOICE_ID_EN"
+  },
+  "tts_provider": "elevenlabs",
+  "background_music_url": "",
+  "default_language": "fr",
+  "supported_languages": ["fr", "en"],
+  "default_format": "short"
+}

@@ -1,0 +1,12 @@
+openai>=1.40.0
+requests>=2.32.0
+google-api-python-client>=2.140.0
+gspread>=6.1.0
+google-auth>=2.34.0
+ffmpeg-python>=0.2.0
+python-dotenv>=1.0.1
+replicate>=0.32.0
+elevenlabs>=1.7.0
+deep-translator>=1.11.4
+supabase>=2.7.0
+pytest>=8.3.0

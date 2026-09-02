@@ -32,6 +32,7 @@ SHEET_HEADERS = (
     "Caricature URL",
     "Date Génération",
     "Nb Utilisations",
+    "Feature Emphasis",
 )
 
 
@@ -67,6 +68,7 @@ def _dry_run_record(person_name: str, reference_photo_url: str) -> dict[str, Any
         "Caricature URL": f"https://dry-run.local/characters/{quote(slug)}.png",
         "Date Génération": datetime.now(timezone.utc).date().isoformat(),
         "Nb Utilisations": 1,
+        "Feature Emphasis": "",
         "dry_run": True,
         "created": True,
     }
@@ -139,6 +141,7 @@ def _supabase_lookup(person_name: str) -> dict[str, Any] | None:
         "Caricature URL": row.get("caricature_url") or "",
         "Date Génération": row.get("date_generation") or "",
         "Nb Utilisations": row.get("nb_utilisations") or 0,
+        "Feature Emphasis": row.get("feature_emphasis") or "",
         "_id": row.get("id"),
     }
 
@@ -151,6 +154,7 @@ def _supabase_upsert(record: dict[str, Any], existing_id: Any | None) -> dict[st
         "caricature_url": record.get("Caricature URL"),
         "date_generation": record.get("Date Génération"),
         "nb_utilisations": record.get("Nb Utilisations", 1),
+        "feature_emphasis": record.get("Feature Emphasis") or "",
     }
     if existing_id:
         client.table("personnages").update(payload).eq("id", existing_id).execute()
@@ -159,31 +163,50 @@ def _supabase_upsert(record: dict[str, Any], existing_id: Any | None) -> dict[st
     return record
 
 
-def _generate_caricature(person_name: str, reference_photo_url: str, style_prompt: str) -> str:
-    """Paid image generation — never called in dry-run.
+def _generate_caricature(person_name: str, reference_photo_url: str, feature_emphasis: str = "") -> str:
+    from scripts.image_providers import CARICATURE_PROMPT, generate_image
 
-    Placeholder until Partie 2.1 wires Replicate/FAL.
-    """
-    raise NotImplementedError(
-        "Image generation API is not wired yet. "
-        f"Would generate caricature for {person_name!r} from {reference_photo_url!r} "
-        f"with style {style_prompt[:80]!r}."
+    prompt = CARICATURE_PROMPT
+    extra = (feature_emphasis or "").strip()
+    if extra:
+        prompt = f"{prompt} Exaggerate this distinctive feature: {extra}."
+    result = generate_image(
+        prompt,
+        "1:1",
+        reference_image_url=reference_photo_url,
+        quality="portrait",
+        dry_run=False,
     )
+    return result["url"]
 
 
 def get_or_create_caricature(
     person_name: str,
-    reference_photo_url: str,
+    reference_photo_url: str = "",
     *,
     dry_run: bool = False,
     style_prompt: str = "",
     video_sheet_id: str | None = None,
     video_row_key: str | None = None,
+    feature_emphasis: str = "",
 ) -> dict[str, Any]:
     """Return an existing caricature or create one.
 
     Always check the bank before calling a paid image API.
     """
+    if not dry_run:
+        backend = _backend()
+        existing = _supabase_lookup(person_name) if backend == "supabase" else _sheets_lookup(person_name)
+        if existing and existing.get("Caricature URL"):
+            existing["Nb Utilisations"] = int(existing.get("Nb Utilisations") or 0) + 1
+            existing["created"] = False
+            if backend == "supabase":
+                _supabase_upsert(existing, existing.get("_id"))
+            else:
+                _sheets_upsert(existing)
+            write_local_cache(existing)
+            return existing
+
     cached = read_local_cache(person_name)
     if cached and cached.get("Caricature URL"):
         cached["Nb Utilisations"] = int(cached.get("Nb Utilisations") or 0) + 1
@@ -192,33 +215,37 @@ def get_or_create_caricature(
         return cached
 
     if dry_run:
-        record = _dry_run_record(person_name, reference_photo_url)
+        record = _dry_run_record(person_name, reference_photo_url or "https://dry-run.local/ref.jpg")
         write_local_cache(record)
         return record
 
     backend = _backend()
+    photo = (reference_photo_url or "").strip()
+    emphasis = (feature_emphasis or "").strip()
     existing = _supabase_lookup(person_name) if backend == "supabase" else _sheets_lookup(person_name)
-    if existing and existing.get("Caricature URL"):
-        existing["Nb Utilisations"] = int(existing.get("Nb Utilisations") or 0) + 1
-        existing["created"] = False
-        if backend == "supabase":
-            _supabase_upsert(existing, existing.get("_id"))
-        else:
-            _sheets_upsert(existing)
-        write_local_cache(existing)
-        return existing
+    if existing:
+        photo = photo or str(existing.get("Photo Référence URL") or "")
+        emphasis = emphasis or str(existing.get("Feature Emphasis") or "")
 
-    url = _generate_caricature(person_name, reference_photo_url, style_prompt)
+    if not photo:
+        from scripts.wikimedia import find_wikimedia_portrait
+
+        photo = find_wikimedia_portrait(person_name) or ""
+    if not photo:
+        raise RuntimeError(f"No Wikimedia reference photo for {person_name!r}")
+
+    url = _generate_caricature(person_name, photo, emphasis)
     record = {
         "Nom": person_name,
-        "Photo Référence URL": reference_photo_url,
+        "Photo Référence URL": photo,
         "Caricature URL": url,
         "Date Génération": datetime.now(timezone.utc).date().isoformat(),
         "Nb Utilisations": 1,
+        "Feature Emphasis": emphasis,
         "created": True,
     }
     if backend == "supabase":
-        _supabase_upsert(record, None)
+        _supabase_upsert(record, existing.get("_id") if existing else None)
     else:
         _sheets_upsert(record)
     write_local_cache(record)

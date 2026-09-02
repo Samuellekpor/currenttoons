@@ -24,8 +24,8 @@ Flux prévu :
 1. Veille quotidienne (`collect_topics.py`) → onglet `Sujets` (statut `À Revoir`).
 2. Tu passes une ligne à `Accepté` **et** tu choisis `Format Vidéo (Court/Long)` + `Langue (FR/EN)` — ces deux champs pilotent la suite.
 3. n8n lance `generate_script.py` → colonne `Script Vidéo Généré`, statut `Script Généré`.
-4. Génération d'images : si `uses_caricatures`, **toujours** `get_or_create_caricature` avant un appel Replicate/FAL.
-5. TTS, montage, publication.
+4. n8n lance `generate_images.py` (previews) si `Images Générées` n'est pas coché.
+5. TTS, montage (upscale des images retenues), publication.
 6. Chaque étape incrémente `Coût Estimé (€)` à partir de `scripts/pricing.json`.
 
 ## Prérequis
@@ -51,7 +51,7 @@ Deux backends (le code choisit `CHARACTER_BANK_BACKEND`, sinon Supabase si `SUPA
 
 **Google Sheets** — créer un classeur, importer `templates/personnages.csv` (onglet `Personnages`) :
 
-| Nom | Photo Référence URL | Caricature URL | Date Génération | Nb Utilisations |
+| Nom | Photo Référence URL | Caricature URL | Date Génération | Nb Utilisations | Feature Emphasis |
 | --- | --- | --- | --- | --- |
 
 Mettre l'ID dans `PERSONNAGES_SHEET_ID`.
@@ -80,11 +80,12 @@ python scripts/collect_topics.py --channel currenttoons --dry-run
 python scripts/collect_topics.py --channel second_channel --dry-run
 python scripts/analyze_topics.py --channel currenttoons --dry-run --title "Test" --url "https://example.com" --excerpt "Emmanuel Macron"
 python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run
-python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run --language EN --format Long
+python scripts/generate_images.py --channel currenttoons --row-id 2 --dry-run
+python scripts/generate_images.py --channel second_channel --row-id 2 --dry-run
 pytest
 ```
 
-Sans `--dry-run`, les scripts visent les APIs réelles (génération d'image pas encore branchée : `NotImplementedError` volontaire jusqu'à la partie 2.1).
+Sans `--dry-run`, NewsAPI / OpenAI / Replicate ou fal.ai sont appelés. Les images de scène sont d'abord en **preview** ; `--upscale` est réservé aux visuels retenus avant montage.
 
 ## Veille
 
@@ -92,6 +93,7 @@ Sans `--dry-run`, les scripts visent les APIs réelles (génération d'image pas
 - Second channel : RSS + Reddit (JSON public) + Google Trends RSS, listés dans le config.
 - Analyse : `prompts/<channel>_topic_analysis.md` via `gpt-4o-mini` (angle, titre, personnages publics).
 - Script : `prompts/<channel>_script_generation.md`, langue + format de la ligne (`Court` 9:16 45-60s / `Long` 16:9 4-8 min).
+- Images : `get_or_create_caricature` (Wikimedia + img2img, réutilisation banque) puis `generate_image(..., quality=preview)`.
 - n8n : voir `workflows/README.md`.
 
 ## Coûts

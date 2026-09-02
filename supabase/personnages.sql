@@ -8,6 +8,7 @@ create table if not exists public.personnages (
   caricature_url text,
   date_generation timestamptz default now(),
   nb_utilisations integer not null default 0,
+  feature_emphasis text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

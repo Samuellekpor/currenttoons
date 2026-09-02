@@ -26,6 +26,8 @@
     "caricature_generation": 0.05,
     "tts": 0.08,
     "topic_analysis": 0.005,
+    "image_preview": 0.01,
+    "image_upscale": 0.04,
     "unknown": 0.01
   }
 }

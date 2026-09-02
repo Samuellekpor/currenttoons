@@ -21,6 +21,8 @@ TOPIC_SHEET_COLUMNS = [
     "Coût Estimé (€)",
     "Commentaires",
     "Script Vidéo Généré",
+    "URLs Images",
+    "Images Générées",
 ]
 
 STATUS_REVIEW = "À Revoir"
@@ -102,6 +104,8 @@ def to_sheet_row(analysis: dict[str, Any], *, today: str | None = None) -> dict[
             f"Source: {analysis.get('source', '')}"
         ),
         "Script Vidéo Généré": "",
+        "URLs Images": "",
+        "Images Générées": False,
     }
 
 

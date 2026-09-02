@@ -35,6 +35,20 @@ Dry-run:
 .venv/bin/python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run
 ```
 
+## Image generation (n8n)
+
+Import `workflows/image-generation.json`.
+
+**Trigger:** Google Sheets `rowUpdate` when statut = `Script Généré` and `Images Générées` is not checked.
+
+**Action:** `scripts/generate_images.py --channel <channel> --row-id <id>`
+
+Preview images only. Upscale later with `--upscale` on retained URLs (montage step).
+
+```bash
+.venv/bin/python scripts/generate_images.py --channel currenttoons --row-id 2 --dry-run
+```
+
 
 Dry-run (no paid APIs, no Sheet write):
 

@@ -1,0 +1,95 @@
+{
+  "name": "Video assembly (on voiceover done)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyMinute" }] },
+        "event": "rowUpdate",
+        "documentId": { "__rl": true, "mode": "id", "value": "={{ $env.CURRENTTOONS_SHEET_ID }}" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Sujets" },
+        "options": {}
+      },
+      "id": "e5f6a7b8-0001-4000-8000-000000000001",
+      "name": "Sheet currenttoons updated",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [200, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyMinute" }] },
+        "event": "rowUpdate",
+        "documentId": { "__rl": true, "mode": "id", "value": "={{ $env.SECOND_CHANNEL_SHEET_ID }}" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Sujets" },
+        "options": {}
+      },
+      "id": "e5f6a7b8-0001-4000-8000-000000000002",
+      "name": "Sheet second_channel updated",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [200, 480],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst status = String(row['Statut (À Revoir/Accepté/Rejeté)'] || '').trim();\nconst checked = (v) => ['true','1','yes','oui','x','checked'].includes(String(v || '').trim().toLowerCase());\nconst rowId = row.row_number || row.rowNumber || row.row || row.id;\nif (status !== 'Script Généré' || !checked(row['Images Générées']) || !checked(row['Voix-off Générée']) || checked(row['Vidéo Montée'])) { return []; }\nreturn [{ json: { rowId, channel: 'currenttoons' } }];"
+      },
+      "id": "e5f6a7b8-0001-4000-8000-000000000003",
+      "name": "If ready currenttoons",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst status = String(row['Statut (À Revoir/Accepté/Rejeté)'] || '').trim();\nconst checked = (v) => ['true','1','yes','oui','x','checked'].includes(String(v || '').trim().toLowerCase());\nconst rowId = row.row_number || row.rowNumber || row.row || row.id;\nif (status !== 'Script Généré' || !checked(row['Images Générées']) || !checked(row['Voix-off Générée']) || checked(row['Vidéo Montée'])) { return []; }\nreturn [{ json: { rowId, channel: 'second_channel' } }];"
+      },
+      "id": "e5f6a7b8-0001-4000-8000-000000000004",
+      "name": "If ready second_channel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 480]
+    },
+    {
+      "parameters": {
+        "command": "=cd \"$PIPELINE_ROOT\" && .venv/bin/python scripts/assemble_video.py --channel {{ $json.channel }} --row-id {{ $json.rowId }}"
+      },
+      "id": "e5f6a7b8-0001-4000-8000-000000000005",
+      "name": "Assemble video",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [760, 340]
+    }
+  ],
+  "connections": {
+    "Sheet currenttoons updated": {
+      "main": [[{ "node": "If ready currenttoons", "type": "main", "index": 0 }]]
+    },
+    "Sheet second_channel updated": {
+      "main": [[{ "node": "If ready second_channel", "type": "main", "index": 0 }]]
+    },
+    "If ready currenttoons": {
+      "main": [[{ "node": "Assemble video", "type": "main", "index": 0 }]]
+    },
+    "If ready second_channel": {
+      "main": [[{ "node": "Assemble video", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "timezone": "Europe/Paris" },
+  "pinData": {},
+  "meta": {
+    "description": "Fires when script + images + voiceover are ready and Vidéo Montée is not checked. Needs ffmpeg on the n8n host."
+  }
+}

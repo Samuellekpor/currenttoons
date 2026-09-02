@@ -63,6 +63,20 @@ Audio + timestamps JSON + `.srt` (langue opposée) dans `output/<channel>/<row-i
 .venv/bin/python scripts/generate_voiceover.py --channel currenttoons --row-id 2 --dry-run
 ```
 
+## Video assembly (n8n)
+
+Import `workflows/video-assembly.json`.
+
+**Trigger:** `Script Généré` + `Images Générées` + `Voix-off Générée`, `Vidéo Montée` non coché.
+
+**Action:** `scripts/assemble_video.py --channel <channel> --row-id <id>`
+
+Requires **ffmpeg** on the host. Output: `output/<channel>/<row-id>/final.mp4` (+ `chapters.txt` for long videos). Work files in `assets_temp/assembly/` are deleted after export.
+
+```bash
+.venv/bin/python scripts/assemble_video.py --channel currenttoons --row-id 2 --dry-run
+```
+
 
 Dry-run (no paid APIs, no Sheet write):
 

@@ -18,6 +18,8 @@ FORMAT_SPECS = {
         "structure": "one angle / one punchline",
         "aspect_ratio": "9:16",
         "framing": "vertical 9:16",
+        "width": 1080,
+        "height": 1920,
     },
     "Long": {
         "duration": "4-8 minutes",
@@ -27,6 +29,8 @@ FORMAT_SPECS = {
         "structure": "several segments; may develop more than one satirical angle on the same topic",
         "aspect_ratio": "16:9",
         "framing": "horizontal 16:9",
+        "width": 1920,
+        "height": 1080,
     },
 }
 

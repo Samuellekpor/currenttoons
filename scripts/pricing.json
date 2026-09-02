@@ -29,6 +29,7 @@
     "topic_analysis": 0.005,
     "image_preview": 0.01,
     "image_upscale": 0.04,
+    "video_assembly": 0.0,
     "unknown": 0.01
   }
 }

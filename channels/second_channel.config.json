@@ -16,6 +16,7 @@
     "en": "nova"
   },
   "background_music_url": "",
+  "background_music_volume": 0.12,
   "default_language": "fr",
   "supported_languages": ["fr", "en"],
   "default_format": "short",

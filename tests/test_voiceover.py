@@ -73,8 +73,8 @@ def test_row_pipeline_fr_subtitles_en(tmp_path, monkeypatch):
     assert payload["audio_url"].startswith("https://dry-run.local/")
 
 
-def test_second_channel_uses_openai_tts():
-    config = load_channel_config("second_channel")
+def test_habitlens_uses_openai_tts():
+    config = load_channel_config("habitlens")
     row = {
         "Statut (À Revoir/Accepté/Rejeté)": STATUS_SCRIPT_GENERATED,
         "Langue (FR/EN)": "EN",
@@ -83,7 +83,7 @@ def test_second_channel_uses_openai_tts():
         "Voix-off Générée": False,
     }
     payload = generate_voiceover_for_row(
-        row, config=config, channel="second_channel", row_id="9", dry_run=True
+        row, config=config, channel="habitlens", row_id="9", dry_run=True
     )
     assert payload["provider"] == "openai"
     assert payload["subtitle_language"] == "FR"

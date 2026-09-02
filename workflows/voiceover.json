@@ -25,12 +25,12 @@
       "parameters": {
         "pollTimes": { "item": [{ "mode": "everyMinute" }] },
         "event": "rowUpdate",
-        "documentId": { "__rl": true, "mode": "id", "value": "={{ $env.SECOND_CHANNEL_SHEET_ID }}" },
+        "documentId": { "__rl": true, "mode": "id", "value": "={{ $env.HABITLENS_SHEET_ID }}" },
         "sheetName": { "__rl": true, "mode": "name", "value": "Sujets" },
         "options": {}
       },
       "id": "d4e5f6a7-0001-4000-8000-000000000002",
-      "name": "Sheet second_channel updated",
+      "name": "Sheet habitlens updated",
       "type": "n8n-nodes-base.googleSheetsTrigger",
       "typeVersion": 1,
       "position": [200, 480],
@@ -53,10 +53,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\nconst status = String(row['Statut (À Revoir/Accepté/Rejeté)'] || '').trim();\nconst checked = (v) => ['true','1','yes','oui','x','checked'].includes(String(v || '').trim().toLowerCase());\nconst rowId = row.row_number || row.rowNumber || row.row || row.id;\nif (status !== 'Script Généré' || !checked(row['Images Générées']) || checked(row['Voix-off Générée'])) { return []; }\nreturn [{ json: { rowId, channel: 'second_channel' } }];"
+        "jsCode": "const row = $input.first().json;\nconst status = String(row['Statut (À Revoir/Accepté/Rejeté)'] || '').trim();\nconst checked = (v) => ['true','1','yes','oui','x','checked'].includes(String(v || '').trim().toLowerCase());\nconst rowId = row.row_number || row.rowNumber || row.row || row.id;\nif (status !== 'Script Généré' || !checked(row['Images Générées']) || checked(row['Voix-off Générée'])) { return []; }\nreturn [{ json: { rowId, channel: 'habitlens' } }];"
       },
       "id": "d4e5f6a7-0001-4000-8000-000000000004",
-      "name": "If ready second_channel",
+      "name": "If ready habitlens",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [480, 480]
@@ -76,13 +76,13 @@
     "Sheet currenttoons updated": {
       "main": [[{ "node": "If ready currenttoons", "type": "main", "index": 0 }]]
     },
-    "Sheet second_channel updated": {
-      "main": [[{ "node": "If ready second_channel", "type": "main", "index": 0 }]]
+    "Sheet habitlens updated": {
+      "main": [[{ "node": "If ready habitlens", "type": "main", "index": 0 }]]
     },
     "If ready currenttoons": {
       "main": [[{ "node": "Generate voiceover", "type": "main", "index": 0 }]]
     },
-    "If ready second_channel": {
+    "If ready habitlens": {
       "main": [[{ "node": "Generate voiceover", "type": "main", "index": 0 }]]
     }
   },

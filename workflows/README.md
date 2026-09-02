@@ -15,7 +15,7 @@ Import `workflows/topic-monitoring.json` into a **self-hosted** n8n (the Execute
 **Actions:**
 
 - `scripts/collect_topics.py --channel currenttoons`
-- `scripts/collect_topics.py --channel second_channel`
+- `scripts/collect_topics.py --channel habitlens`
 
 Each run collects sources, calls `gpt-4o-mini` for angle + public figures, then appends rows to the channel Google Sheet tab `Sujets` with status `À Revoir`. Format and language stay empty until you set the status to `Accepté`.
 
@@ -27,7 +27,7 @@ Import `workflows/script-generation.json`.
 
 **Action:** `scripts/generate_script.py --channel <channel> --row-id <id>`
 
-Set `PIPELINE_ROOT`, `CURRENTTOONS_SHEET_ID`, `SECOND_CHANNEL_SHEET_ID`, and the Google Sheets OAuth credential in n8n. `--row-id` is the sheet row number (or the article URL).
+Set `PIPELINE_ROOT`, `CURRENTTOONS_SHEET_ID`, `HABITLENS_SHEET_ID`, and the Google Sheets OAuth credential in n8n. `--row-id` is the sheet row number (or the article URL).
 
 Dry-run:
 

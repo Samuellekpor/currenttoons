@@ -10,9 +10,17 @@ def test_currenttoons_uses_caricatures():
     assert "fr" in config["elevenlabs_voice_id"]
 
 
-def test_second_channel_skips_caricatures():
-    config = load_channel_config("second_channel")
+def test_habitlens_skips_caricatures():
+    config = load_channel_config("habitlens")
     assert config["uses_caricatures"] is False
+    assert config["channel_name"] == "HabitLens"
+    assert config["tts_provider"] == "openai"
+    assert config["tts_voice_id"]["fr"] == "nova"
+    assert config["background_music_url"].endswith("habitlens-bed.wav")
+    from pathlib import Path
+    from scripts.cli import PROJECT_ROOT
+
+    assert (PROJECT_ROOT / config["background_music_url"]).exists()
 
 
 def test_pricing_has_defaults():

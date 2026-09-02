@@ -58,7 +58,7 @@ def test_draft_upload_dry_run(tmp_path, monkeypatch):
 
 def test_confirm_publish_dry_run(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.publishing.PROJECT_ROOT", tmp_path)
-    config = load_channel_config("second_channel")
+    config = load_channel_config("habitlens")
     row = {
         "Statut (À Revoir/Accepté/Rejeté)": STATUS_SCRIPT_GENERATED,
         "Format Vidéo (Court/Long)": "Long",
@@ -68,8 +68,8 @@ def test_confirm_publish_dry_run(tmp_path, monkeypatch):
         "Vidéo Montée": True,
         "Publiée": False,
     }
-    prepare_and_upload_drafts(row, config=config, channel="second_channel", row_id="9", dry_run=True)
-    confirmed = confirm_public_publish(config=config, channel="second_channel", row_id="9", dry_run=True)
+    prepare_and_upload_drafts(row, config=config, channel="habitlens", row_id="9", dry_run=True)
+    confirmed = confirm_public_publish(config=config, channel="habitlens", row_id="9", dry_run=True)
     assert confirmed["status"] == STATUS_PUBLISHED
     assert confirmed["youtube"]["privacy"] == "public"
 

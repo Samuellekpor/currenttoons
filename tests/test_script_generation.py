@@ -34,7 +34,7 @@ def test_generate_script_dry_run_short_fr_names_characters():
 
 
 def test_generate_script_dry_run_long_en():
-    config = load_channel_config("second_channel")
+    config = load_channel_config("habitlens")
     row = {
         "Titre Article Original": "Sleep habits",
         "URL Article": "https://dry-run.local/sleep",

@@ -61,8 +61,8 @@ def test_long_format_reuses_same_face(tmp_path, monkeypatch):
     assert len(urls) == 1
 
 
-def test_second_channel_skips_character_bank():
-    config = load_channel_config("second_channel")
+def test_habitlens_skips_character_bank():
+    config = load_channel_config("habitlens")
     payload = generate_images_for_row(_row("Court"), config=config, dry_run=True)
     assert payload["caricatures"] == {}
     assert all(img["reference_image_url"] is None for img in payload["images"])

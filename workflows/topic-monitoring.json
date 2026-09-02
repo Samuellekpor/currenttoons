@@ -32,10 +32,10 @@
     },
     {
       "parameters": {
-        "command": "cd \"$PIPELINE_ROOT\" && .venv/bin/python scripts/collect_topics.py --channel second_channel"
+        "command": "cd \"$PIPELINE_ROOT\" && .venv/bin/python scripts/collect_topics.py --channel habitlens"
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000003",
-      "name": "Collect second_channel",
+      "name": "Collect habitlens",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [520, 400]
@@ -51,7 +51,7 @@
             "index": 0
           },
           {
-            "node": "Collect second_channel",
+            "node": "Collect habitlens",
             "type": "main",
             "index": 0
           }

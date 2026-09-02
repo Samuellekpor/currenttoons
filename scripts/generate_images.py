@@ -50,17 +50,49 @@ DRY_RUN_ROW = {
 def load_row(config: dict, row_id: str, *, dry_run: bool, video_format: str | None):
     if dry_run:
         row = dict(DRY_RUN_ROW)
+        if not config.get("uses_caricatures"):
+            script = {
+                "title": "Deux minutes pour mieux dormir",
+                "language": "FR",
+                "format": "Court",
+                "aspect_ratio": "9:16",
+                "characters": [],
+                "scenes": [
+                    {"shot": 1, "visual": "Cadrage vertical 9:16, lampe de chevet, téléphone posé loin du lit.", "dialogue": "A"},
+                    {"shot": 2, "visual": "Une personne pose le téléphone dans une autre pièce, lumière chaude.", "dialogue": "B"},
+                    {"shot": 3, "visual": "Respiration calme, rideaux tirés, 9:16.", "dialogue": "C"},
+                    {"shot": 4, "visual": "Réveil le lendemain, lumière naturelle, pas de visage caricaturé.", "dialogue": "D"},
+                ],
+            }
+            row["Titre Article Original"] = "Sommeil"
+            row["URL Article"] = "https://dry-run.local/habits/sleep"
+            row["Personnages Identifiés"] = ""
+            row["Script Vidéo Généré"] = format_script_cell(script)
         if video_format:
             row["Format Vidéo (Court/Long)"] = video_format
             if video_format.lower() == "long":
-                script = dict(DRY_RUN_SCRIPT)
-                script["format"] = "Long"
-                script["aspect_ratio"] = "16:9"
-                script["scenes"] = [
-                    {"shot": i + 1, "visual": f"Plan 16:9 Emmanuel Macron, chapitre {i // 3 + 1}.", "dialogue": str(i)}
-                    for i in range(10)
-                ]
-                row["Script Vidéo Généré"] = format_script_cell(script)
+                if config.get("uses_caricatures"):
+                    script = dict(DRY_RUN_SCRIPT)
+                    script["format"] = "Long"
+                    script["aspect_ratio"] = "16:9"
+                    script["scenes"] = [
+                        {"shot": i + 1, "visual": f"Plan 16:9 Emmanuel Macron, chapitre {i // 3 + 1}.", "dialogue": str(i)}
+                        for i in range(10)
+                    ]
+                    row["Script Vidéo Généré"] = format_script_cell(script)
+                else:
+                    script = {
+                        "title": "Le rituel du soir",
+                        "language": "FR",
+                        "format": "Long",
+                        "aspect_ratio": "16:9",
+                        "characters": [],
+                        "scenes": [
+                            {"shot": i + 1, "visual": f"Plan 16:9, intérieur calme, chapitre {i // 3 + 1}.", "dialogue": str(i)}
+                            for i in range(10)
+                        ],
+                    }
+                    row["Script Vidéo Généré"] = format_script_cell(script)
         return 2, row
     from scripts.sheets import get_row
 

@@ -61,6 +61,8 @@ Mettre l'ID dans `PERSONNAGES_SHEET_ID`.
 
 Importer `templates/video_sheet_headers.csv` comme onglet `Sujets` (créé aussi automatiquement au premier run live). Colonnes : Date, article, angle, titre suggéré, personnages, statut, **format et langue vides jusqu'à Accepté**, coût, commentaires.
 
+HabitLens a sa propre feuille : coller l'ID dans `HABITLENS_SHEET_ID` (`.env`) ; le placeholder `REPLACE_WITH_HABITLENS_SHEET_ID` est remplacé au chargement.
+
 **Supabase** — exécuter `supabase/personnages.sql` dans l'éditeur SQL.
 
 ## Ajouter une chaîne
@@ -80,7 +82,7 @@ Toujours tester en dry-run (aucun appel payant) :
 source .venv/bin/activate
 python scripts/run_pipeline.py --channel currenttoons --dry-run
 python scripts/collect_topics.py --channel currenttoons --dry-run
-python scripts/collect_topics.py --channel second_channel --dry-run
+python scripts/collect_topics.py --channel habitlens --dry-run
 python scripts/analyze_topics.py --channel currenttoons --dry-run --title "Test" --url "https://example.com" --excerpt "Emmanuel Macron"
 python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run
 python scripts/generate_images.py --channel currenttoons --row-id 2 --dry-run
@@ -96,11 +98,11 @@ Sans `--dry-run`, NewsAPI / OpenAI / Replicate ou fal.ai sont appelés. Les imag
 ## Veille
 
 - CurrentToons : un seul appel NewsAPI (`everything`) avec les mots-clés du config combinés en `OR`, retry léger sur 429/5xx, pas de pagination.
-- Second channel : RSS + Reddit (JSON public) + Google Trends RSS, listés dans le config.
+- HabitLens : RSS + Reddit + Google Trends RSS, listés dans `channels/habitlens.config.json`.
 - Analyse : `prompts/<channel>_topic_analysis.md` via `gpt-4o-mini` (angle, titre, personnages publics).
 - Script : `prompts/<channel>_script_generation.md`, langue + format de la ligne (`Court` 9:16 45-60s / `Long` 16:9 4-8 min).
 - Images : `get_or_create_caricature` (Wikimedia + img2img, réutilisation banque) puis `generate_image(..., quality=preview)`.
-- Voix-off : ElevenLabs (CurrentToons, timestamps natifs) ou OpenAI `tts-1` (autre chaîne) + SRT dans la langue opposée via `gpt-4o-mini`.
+- Voix-off : ElevenLabs (CurrentToons, timestamps natifs) ou OpenAI `tts-1` (HabitLens : nova FR / onyx EN) + SRT dans la langue opposée via `gpt-4o-mini`.
 - Montage : FFmpeg (`1080x1920` court / `1920x1080` long), synchro timestamps, sous-titres langue opposée incrustés, musique de fond, chapitres YouTube (format long).
 - Publication : YouTube non répertorié + TikTok `SELF_ONLY` + IG conteneur non publié ; validation Telegram ; `x_auto_publish` (défaut `false`).
 - n8n : voir `workflows/README.md`.

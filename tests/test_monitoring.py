@@ -12,7 +12,7 @@ def test_newsapi_query_combines_phrases():
 
 def test_channel_monitoring_providers():
     current = load_channel_config("currenttoons")
-    second = load_channel_config("second_channel")
+    second = load_channel_config("habitlens")
     assert current["monitoring"]["provider"] == "newsapi"
     assert second["monitoring"]["provider"] == "web"
     assert current["topic_analysis_prompt_path"].endswith("currenttoons_topic_analysis.md")

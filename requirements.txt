@@ -10,3 +10,5 @@ elevenlabs>=1.7.0
 deep-translator>=1.11.4
 supabase>=2.7.0
 pytest>=8.3.0
+# Optional local forced alignment (heavy: torch). If missing, OpenAI whisper-1 word timestamps are used.
+# whisper-timestamped

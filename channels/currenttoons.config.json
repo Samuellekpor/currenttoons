@@ -10,6 +10,7 @@
     "en": "REPLACE_WITH_ELEVENLABS_VOICE_ID_EN"
   },
   "tts_provider": "elevenlabs",
+  "tts_model": "eleven_multilingual_v2",
   "background_music_url": "",
   "default_language": "fr",
   "supported_languages": ["fr", "en"],

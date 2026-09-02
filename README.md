@@ -25,8 +25,9 @@ Flux prévu :
 2. Tu passes une ligne à `Accepté` **et** tu choisis `Format Vidéo (Court/Long)` + `Langue (FR/EN)` — ces deux champs pilotent la suite.
 3. n8n lance `generate_script.py` → colonne `Script Vidéo Généré`, statut `Script Généré`.
 4. n8n lance `generate_images.py` (previews) si `Images Générées` n'est pas coché.
-5. TTS, montage (upscale des images retenues), publication.
-6. Chaque étape incrémente `Coût Estimé (€)` à partir de `scripts/pricing.json`.
+5. n8n lance `generate_voiceover.py` (TTS + SRT langue opposée) si `Voix-off Générée` n'est pas coché.
+6. Montage (upscale des images retenues), publication.
+7. Chaque étape incrémente `Coût Estimé (€)` à partir de `scripts/pricing.json`.
 
 ## Prérequis
 
@@ -81,7 +82,8 @@ python scripts/collect_topics.py --channel second_channel --dry-run
 python scripts/analyze_topics.py --channel currenttoons --dry-run --title "Test" --url "https://example.com" --excerpt "Emmanuel Macron"
 python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run
 python scripts/generate_images.py --channel currenttoons --row-id 2 --dry-run
-python scripts/generate_images.py --channel second_channel --row-id 2 --dry-run
+python scripts/generate_voiceover.py --channel currenttoons --row-id 2 --dry-run
+python scripts/generate_voiceover.py --channel second_channel --row-id 2 --dry-run
 pytest
 ```
 
@@ -94,6 +96,7 @@ Sans `--dry-run`, NewsAPI / OpenAI / Replicate ou fal.ai sont appelés. Les imag
 - Analyse : `prompts/<channel>_topic_analysis.md` via `gpt-4o-mini` (angle, titre, personnages publics).
 - Script : `prompts/<channel>_script_generation.md`, langue + format de la ligne (`Court` 9:16 45-60s / `Long` 16:9 4-8 min).
 - Images : `get_or_create_caricature` (Wikimedia + img2img, réutilisation banque) puis `generate_image(..., quality=preview)`.
+- Voix-off : ElevenLabs (CurrentToons, timestamps natifs) ou OpenAI `tts-1` (autre chaîne) + SRT dans la langue opposée via `gpt-4o-mini`.
 - n8n : voir `workflows/README.md`.
 
 ## Coûts

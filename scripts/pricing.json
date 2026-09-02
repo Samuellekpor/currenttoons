@@ -25,6 +25,7 @@
     "image_generation": 0.03,
     "caricature_generation": 0.05,
     "tts": 0.08,
+    "tts_openai": 0.02,
     "topic_analysis": 0.005,
     "image_preview": 0.01,
     "image_upscale": 0.04,

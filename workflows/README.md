@@ -49,6 +49,20 @@ Preview images only. Upscale later with `--upscale` on retained URLs (montage st
 .venv/bin/python scripts/generate_images.py --channel currenttoons --row-id 2 --dry-run
 ```
 
+## Voiceover (n8n)
+
+Import `workflows/voiceover.json`.
+
+**Trigger:** statut `Script Généré` + `Images Générées` coché, `Voix-off Générée` non coché.
+
+**Action:** `scripts/generate_voiceover.py --channel <channel> --row-id <id>`
+
+Audio + timestamps JSON + `.srt` (langue opposée) dans `output/<channel>/<row-id>/`.
+
+```bash
+.venv/bin/python scripts/generate_voiceover.py --channel currenttoons --row-id 2 --dry-run
+```
+
 
 Dry-run (no paid APIs, no Sheet write):
 

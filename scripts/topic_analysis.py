@@ -23,6 +23,10 @@ TOPIC_SHEET_COLUMNS = [
     "Script Vidéo Généré",
     "URLs Images",
     "Images Générées",
+    "URL Voix-off",
+    "URL Timestamps",
+    "URL Sous-titres (langue opposée)",
+    "Voix-off Générée",
 ]
 
 STATUS_REVIEW = "À Revoir"
@@ -106,6 +110,10 @@ def to_sheet_row(analysis: dict[str, Any], *, today: str | None = None) -> dict[
         "Script Vidéo Généré": "",
         "URLs Images": "",
         "Images Générées": False,
+        "URL Voix-off": "",
+        "URL Timestamps": "",
+        "URL Sous-titres (langue opposée)": "",
+        "Voix-off Générée": False,
     }
 
 

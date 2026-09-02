@@ -9,7 +9,12 @@
     "fr": "REPLACE_WITH_ELEVENLABS_VOICE_ID_FR",
     "en": "REPLACE_WITH_ELEVENLABS_VOICE_ID_EN"
   },
-  "tts_provider": "elevenlabs",
+  "tts_provider": "openai",
+  "tts_model": "tts-1",
+  "tts_voice_id": {
+    "fr": "nova",
+    "en": "nova"
+  },
   "background_music_url": "",
   "default_language": "fr",
   "supported_languages": ["fr", "en"],

@@ -19,6 +19,7 @@
   "topic_analysis_prompt_path": "prompts/currenttoons_topic_analysis.md",
   "script_generation_prompt_path": "prompts/currenttoons_script_generation.md",
   "google_sheet_tab": "Sujets",
+  "x_auto_publish": false,
   "monitoring": {
     "provider": "newsapi",
     "max_topics": 8,

@@ -30,6 +30,7 @@
     "image_preview": 0.01,
     "image_upscale": 0.04,
     "video_assembly": 0.0,
+    "seo_metadata": 0.005,
     "unknown": 0.01
   }
 }

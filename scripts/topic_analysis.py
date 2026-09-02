@@ -29,11 +29,18 @@ TOPIC_SHEET_COLUMNS = [
     "Voix-off Générée",
     "URL Vidéo Finale",
     "Vidéo Montée",
+    "URL YouTube",
+    "URL TikTok",
+    "URL Instagram",
+    "URL X",
+    "Publiée",
 ]
 
 STATUS_REVIEW = "À Revoir"
 STATUS_ACCEPTED = "Accepté"
 STATUS_SCRIPT_GENERATED = "Script Généré"
+STATUS_PENDING_VALIDATION = "En Attente de Validation"
+STATUS_PUBLISHED = "Publiée"
 EMPTY_UNTIL_ACCEPTED = ""
 
 
@@ -118,6 +125,11 @@ def to_sheet_row(analysis: dict[str, Any], *, today: str | None = None) -> dict[
         "Voix-off Générée": False,
         "URL Vidéo Finale": "",
         "Vidéo Montée": False,
+        "URL YouTube": "",
+        "URL TikTok": "",
+        "URL Instagram": "",
+        "URL X": "",
+        "Publiée": False,
     }
 
 

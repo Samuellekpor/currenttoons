@@ -77,6 +77,24 @@ Requires **ffmpeg** on the host. Output: `output/<channel>/<row-id>/final.mp4` (
 .venv/bin/python scripts/assemble_video.py --channel currenttoons --row-id 2 --dry-run
 ```
 
+## Publish drafts + Telegram gate (n8n)
+
+Import `workflows/publish-draft.json` and `workflows/publish-confirmed.json`.
+
+**Draft trigger:** `Vidéo Montée` coché, `Publiée` non coché, statut ≠ `En Attente de Validation`.
+
+**Action:** `scripts/publish_video.py --channel <channel> --row-id <id>`
+
+Uploads YouTube **unlisted** (`containsSyntheticMedia` when the API accepts it), TikTok **inbox / SELF_ONLY**, Instagram Reels **container without `media_publish`**. X posts only if `x_auto_publish` is true in the channel config (default false). Then Telegram (or `NOTIFY_EMAIL`) with a button hitting the `publish_confirmed` webhook.
+
+**Confirm webhook:** GET `publish_confirmed?channel=&row_id=&secret=` → `scripts/confirm_publish.py`. Sheet status becomes `Publiée`.
+
+`PUBLISH_WEBHOOK_URL` must be HTTPS (Telegram URL buttons). Set `PUBLISH_WEBHOOK_SECRET`. Host the MP4 at `PUBLIC_ASSET_BASE_URL` for Instagram.
+
+```bash
+.venv/bin/python scripts/publish_video.py --channel currenttoons --row-id 2 --dry-run
+.venv/bin/python scripts/confirm_publish.py --channel currenttoons --row-id 2 --dry-run
+```
 
 Dry-run (no paid APIs, no Sheet write):
 

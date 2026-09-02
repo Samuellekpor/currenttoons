@@ -23,6 +23,7 @@
   "topic_analysis_prompt_path": "prompts/second_channel_topic_analysis.md",
   "script_generation_prompt_path": "prompts/second_channel_script_generation.md",
   "google_sheet_tab": "Sujets",
+  "x_auto_publish": false,
   "monitoring": {
     "provider": "web",
     "max_topics": 8,

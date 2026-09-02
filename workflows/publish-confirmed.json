@@ -1,0 +1,40 @@
+{
+  "name": "publish_confirmed webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "publish_confirmed",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a7b8c9d0-0001-4000-8000-000000000001",
+      "name": "Webhook publish_confirmed",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "publish-confirmed"
+    },
+    {
+      "parameters": {
+        "command": "=cd \"$PIPELINE_ROOT\" && .venv/bin/python scripts/confirm_publish.py --channel {{ $json.query.channel || $json.channel }} --row-id {{ $json.query.row_id || $json.query['row-id'] || $json.row_id }} --secret {{ $json.query.secret }}"
+      },
+      "id": "a7b8c9d0-0001-4000-8000-000000000002",
+      "name": "Confirm public publish",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [520, 300]
+    }
+  ],
+  "connections": {
+    "Webhook publish_confirmed": {
+      "main": [[{ "node": "Confirm public publish", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "timezone": "Europe/Paris" },
+  "pinData": {},
+  "meta": {
+    "description": "Telegram button hits GET /webhook/publish_confirmed?channel=&row_id=&secret= then flips YouTube/TikTok/IG to public."
+  }
+}

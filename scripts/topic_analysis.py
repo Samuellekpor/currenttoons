@@ -20,10 +20,12 @@ TOPIC_SHEET_COLUMNS = [
     "Langue (FR/EN)",
     "Coût Estimé (€)",
     "Commentaires",
+    "Script Vidéo Généré",
 ]
 
 STATUS_REVIEW = "À Revoir"
 STATUS_ACCEPTED = "Accepté"
+STATUS_SCRIPT_GENERATED = "Script Généré"
 EMPTY_UNTIL_ACCEPTED = ""
 
 
@@ -99,6 +101,7 @@ def to_sheet_row(analysis: dict[str, Any], *, today: str | None = None) -> dict[
             "Format et langue à renseigner uniquement en passant le statut à Accepté. "
             f"Source: {analysis.get('source', '')}"
         ),
+        "Script Vidéo Généré": "",
     }
 
 
@@ -132,11 +135,11 @@ def write_topics_to_sheet(
 
 def delivery_options_from_row(row: dict[str, Any]) -> dict[str, str]:
     """Format + language are chosen only when the row is set to Accepté."""
+    from scripts.script_generation import normalize_format, normalize_language
+
     status = str(row.get("Statut (À Revoir/Accepté/Rejeté)") or "").strip()
     if status != STATUS_ACCEPTED:
         raise ValueError("Pipeline delivery options are only valid when status is Accepté")
-    video_format = str(row.get("Format Vidéo (Court/Long)") or "").strip()
-    language = str(row.get("Langue (FR/EN)") or "").strip()
-    if not video_format or not language:
-        raise ValueError("Set Format Vidéo (Court/Long) and Langue (FR/EN) when accepting a topic")
+    video_format = normalize_format(row.get("Format Vidéo (Court/Long)") or "")
+    language = normalize_language(row.get("Langue (FR/EN)") or "")
     return {"format": video_format, "language": language}

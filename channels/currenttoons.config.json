@@ -15,6 +15,7 @@
   "supported_languages": ["fr", "en"],
   "default_format": "short",
   "topic_analysis_prompt_path": "prompts/currenttoons_topic_analysis.md",
+  "script_generation_prompt_path": "prompts/currenttoons_script_generation.md",
   "google_sheet_tab": "Sujets",
   "monitoring": {
     "provider": "newsapi",

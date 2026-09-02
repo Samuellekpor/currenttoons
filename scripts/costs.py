@@ -35,6 +35,8 @@ def add_video_cost(
     *,
     dry_run: bool = False,
     credentials_path: str | None = None,
+    tab: str = "Sujets",
+    key_column: str = "URL Article",
 ) -> dict[str, Any]:
     """Increment the Coût Estimé (€) column for a video row.
 
@@ -56,6 +58,8 @@ def add_video_cost(
         row_key=video_row_key,
         column_name=VIDEO_COST_COLUMN,
         delta=amount_eur,
+        tab=tab,
+        key_column=key_column,
         credentials_path=credentials_path,
     )
     return {**payload, "applied": True, "dry_run": False}

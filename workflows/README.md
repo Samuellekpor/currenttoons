@@ -19,6 +19,23 @@ Import `workflows/topic-monitoring.json` into a **self-hosted** n8n (the Execute
 
 Each run collects sources, calls `gpt-4o-mini` for angle + public figures, then appends rows to the channel Google Sheet tab `Sujets` with status `À Revoir`. Format and language stay empty until you set the status to `Accepté`.
 
+## Script generation (n8n)
+
+Import `workflows/script-generation.json`.
+
+**Trigger:** Google Sheets `rowUpdate` on tab `Sujets` (poll every minute). Runs only if statut = `Accepté`, format + langue renseignés, et `Script Vidéo Généré` encore vide.
+
+**Action:** `scripts/generate_script.py --channel <channel> --row-id <id>`
+
+Set `PIPELINE_ROOT`, `CURRENTTOONS_SHEET_ID`, `SECOND_CHANNEL_SHEET_ID`, and the Google Sheets OAuth credential in n8n. `--row-id` is the sheet row number (or the article URL).
+
+Dry-run:
+
+```bash
+.venv/bin/python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run
+```
+
+
 Dry-run (no paid APIs, no Sheet write):
 
 ```bash

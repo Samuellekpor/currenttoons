@@ -23,9 +23,10 @@ Flux prévu :
 
 1. Veille quotidienne (`collect_topics.py`) → onglet `Sujets` (statut `À Revoir`).
 2. Tu passes une ligne à `Accepté` **et** tu choisis `Format Vidéo (Court/Long)` + `Langue (FR/EN)` — ces deux champs pilotent la suite.
-3. Génération d'images : si `uses_caricatures`, **toujours** `get_or_create_caricature` avant un appel Replicate/FAL.
-4. TTS, montage, publication.
-5. Chaque étape incrémente `Coût Estimé (€)` à partir de `scripts/pricing.json`.
+3. n8n lance `generate_script.py` → colonne `Script Vidéo Généré`, statut `Script Généré`.
+4. Génération d'images : si `uses_caricatures`, **toujours** `get_or_create_caricature` avant un appel Replicate/FAL.
+5. TTS, montage, publication.
+6. Chaque étape incrémente `Coût Estimé (€)` à partir de `scripts/pricing.json`.
 
 ## Prérequis
 
@@ -78,7 +79,8 @@ python scripts/run_pipeline.py --channel currenttoons --dry-run
 python scripts/collect_topics.py --channel currenttoons --dry-run
 python scripts/collect_topics.py --channel second_channel --dry-run
 python scripts/analyze_topics.py --channel currenttoons --dry-run --title "Test" --url "https://example.com" --excerpt "Emmanuel Macron"
-python scripts/generate_images.py --channel currenttoons --dry-run --person "Jean Exemple"
+python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run
+python scripts/generate_script.py --channel currenttoons --row-id 2 --dry-run --language EN --format Long
 pytest
 ```
 
@@ -89,6 +91,7 @@ Sans `--dry-run`, les scripts visent les APIs réelles (génération d'image pas
 - CurrentToons : un seul appel NewsAPI (`everything`) avec les mots-clés du config combinés en `OR`, retry léger sur 429/5xx, pas de pagination.
 - Second channel : RSS + Reddit (JSON public) + Google Trends RSS, listés dans le config.
 - Analyse : `prompts/<channel>_topic_analysis.md` via `gpt-4o-mini` (angle, titre, personnages publics).
+- Script : `prompts/<channel>_script_generation.md`, langue + format de la ligne (`Court` 9:16 45-60s / `Long` 16:9 4-8 min).
 - n8n : voir `workflows/README.md`.
 
 ## Coûts

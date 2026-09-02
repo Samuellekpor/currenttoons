@@ -68,14 +68,55 @@ def existing_column_values(
     return {str(row.get(column_name, "")).strip() for row in records if row.get(column_name)}
 
 
+def get_row(
+    sheet_id: str,
+    tab: str,
+    row_id: str,
+    *,
+    credentials_path: str | None = None,
+) -> tuple[int, dict[str, Any]]:
+    """Resolve --row-id as a 1-based sheet row number or as URL Article."""
+    ws = open_worksheet(sheet_id, tab, credentials_path=credentials_path)
+    headers = ws.row_values(1)
+    token = str(row_id).strip()
+    if token.isdigit():
+        idx = int(token)
+        if idx < 2:
+            raise ValueError("row-id must point to a data row (>= 2)")
+        values = ws.row_values(idx)
+        record = {headers[i]: (values[i] if i < len(values) else "") for i in range(len(headers))}
+        return idx, {**record, "_row": idx}
+    records = ws.get_all_records()
+    for i, row in enumerate(records, start=2):
+        if str(row.get("URL Article", "")).strip() == token:
+            return i, {**row, "_row": i}
+    raise KeyError(f"Row {row_id!r} not found")
+
+
+def update_row_values(
+    sheet_id: str,
+    tab: str,
+    row_index: int,
+    values: dict[str, Any],
+    *,
+    credentials_path: str | None = None,
+) -> dict[str, Any]:
+    ws = open_worksheet(sheet_id, tab, credentials_path=credentials_path)
+    headers = ws.row_values(1)
+    for key, value in values.items():
+        if key in headers:
+            ws.update_cell(row_index, headers.index(key) + 1, value)
+    return {**values, "_row": row_index}
+
+
 def increment_numeric_cell(
     sheet_id: str,
     *,
     row_key: str,
     column_name: str,
     delta: float,
-    tab: str = "Vidéos",
-    key_column: str = "Titre",
+    tab: str = "Sujets",
+    key_column: str = "URL Article",
     credentials_path: str | None = None,
 ) -> float:
     ws = open_worksheet(sheet_id, tab, credentials_path=credentials_path)

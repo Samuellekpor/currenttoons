@@ -41,6 +41,28 @@ def ffmpeg_cmd() -> str | None:
     return shutil.which("ffmpeg")
 
 
+def ffmpeg_has_filter(name: str) -> bool:
+    cmd = ffmpeg_cmd()
+    if not cmd:
+        return False
+    import subprocess
+
+    try:
+        proc = subprocess.run(
+            [cmd, "-hide_banner", "-filters"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == name:
+            return True
+    return False
+
+
 def parse_image_list(raw: Any) -> list[dict[str, Any]]:
     if isinstance(raw, list):
         items = raw
@@ -202,11 +224,6 @@ def materialize_asset(url: str, dest: Path, *, kind: str) -> Path:
     return dest
 
 
-def _escape_subtitles_path(path: Path) -> str:
-    text = path.resolve().as_posix()
-    return text.replace("\\", "/").replace(":", "\\:").replace("'", r"\'")
-
-
 def run_ffmpeg_assembly(
     clips: list[Clip],
     *,
@@ -241,12 +258,16 @@ def run_ffmpeg_assembly(
         )
         streams.append(video)
     joined = ffmpeg.concat(*streams, v=1, a=0) if len(streams) > 1 else streams[0]
-    if srt_path and srt_path.exists() and srt_path.stat().st_size > 0:
+    burned = False
+    if srt_path and srt_path.exists() and srt_path.stat().st_size > 0 and ffmpeg_has_filter("subtitles"):
+        # FFmpeg 7+ needs filename=; a bare /Users/... path is parsed as filter options.
+        # Homebrew ffmpeg 9 often ships without libass, so the subtitles filter is absent.
         joined = joined.filter(
             "subtitles",
-            _escape_subtitles_path(srt_path),
+            filename=str(srt_path.resolve()),
             force_style="FontName=Arial,FontSize=18,Alignment=2,Outline=2,MarginV=48,PrimaryColour=&H00FFFFFF",
         )
+        burned = True
 
     voice = ffmpeg.input(str(voice_path)).audio
     if music_path and music_path.exists():
@@ -267,7 +288,13 @@ def run_ffmpeg_assembly(
         **extra,
     )
     out = ffmpeg.output(joined, audio, str(output_path), **kwargs)
-    ffmpeg.run(out, cmd=cmd, overwrite_output=True, quiet=True)
+    try:
+        ffmpeg.run(out, cmd=cmd, overwrite_output=True, quiet=True)
+    except ffmpeg.Error as exc:
+        detail = (exc.stderr or b"").decode("utf-8", errors="replace").strip().splitlines()
+        hint = detail[-1] if detail else str(exc)
+        raise RuntimeError(f"ffmpeg failed: {hint}") from exc
+    return burned
 
 
 def assemble_video_for_row(
@@ -353,23 +380,24 @@ def assemble_video_for_row(
 
     output_path = out_dir / "final.mp4"
     encoded_with_ffmpeg = False
+    burned = bool(srt_path and srt_path.exists() and srt_path.stat().st_size > 0)
     try:
-        run_ffmpeg_assembly(
-            clips,
-            voice_path=voice_path,
-            srt_path=srt_path,
-            music_path=music_path,
-            music_volume=volume,
-            width=width,
-            height=height,
-            output_path=output_path,
-            chapters_meta=meta_path if video_format == "Long" else None,
-        )
-        encoded_with_ffmpeg = True
-    except FileNotFoundError:
-        if not dry_run:
-            raise
-        output_path.write_bytes(b"dry-run-mp4-placeholder")
+        if dry_run:
+            # Fake assets are 1x1 PNGs; skip a real encode. Live runs use ffmpeg.
+            output_path.write_bytes(b"dry-run-mp4-placeholder")
+        else:
+            burned = run_ffmpeg_assembly(
+                clips,
+                voice_path=voice_path,
+                srt_path=srt_path,
+                music_path=music_path,
+                music_volume=volume,
+                width=width,
+                height=height,
+                output_path=output_path,
+                chapters_meta=meta_path if video_format == "Long" else None,
+            )
+            encoded_with_ffmpeg = True
     finally:
         if work_dir.exists():
             shutil.rmtree(work_dir, ignore_errors=True)
@@ -384,7 +412,7 @@ def assemble_video_for_row(
         "chapters": chapters,
         "chapters_url": (f"https://dry-run.local/{chapters_txt.relative_to(PROJECT_ROOT).as_posix()}" if dry_run else chapters_txt.relative_to(PROJECT_ROOT).as_posix()),
         "video_url": video_url,
-        "subtitles_burned": True,
+        "subtitles_burned": burned,
         "encoded_with_ffmpeg": encoded_with_ffmpeg,
         "cost_eur": 0.0 if dry_run else estimate_cost("video_assembly"),
         "dry_run": dry_run,

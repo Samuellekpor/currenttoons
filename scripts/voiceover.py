@@ -57,6 +57,12 @@ def resolve_tts(config: dict[str, Any], language: str) -> tuple[str, str, str]:
     if provider == "elevenlabs":
         voices = config.get("elevenlabs_voice_id") or {}
         model = str(config.get("tts_model") or "eleven_multilingual_v2")
+        from scripts.ai_client import uses_aimlapi
+
+        if not os.environ.get("ELEVENLABS_API_KEY") and uses_aimlapi():
+            provider = "openai"
+            voices = config.get("tts_voice_id") or {"fr": "nova", "en": "onyx"}
+            model = "tts-1"
     else:
         voices = config.get("tts_voice_id") or config.get("elevenlabs_voice_id") or {}
         model = str(config.get("tts_model") or "tts-1")
@@ -246,18 +252,71 @@ def _elevenlabs_with_timestamps(text: str, voice_id: str, model: str) -> dict[st
 
 
 def _openai_tts_then_align(text: str, voice_id: str, language: str, model: str) -> dict[str, Any]:
-    from openai import OpenAI
+    from scripts.ai_client import uses_aimlapi
 
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY is not set")
-    client = OpenAI()
-    speech = client.audio.speech.create(model=model, voice=voice_id, input=text)
-    audio_bytes = speech.read() if hasattr(speech, "read") else bytes(speech.content)
-    words = _align_audio_bytes(audio_bytes, language)
+    if uses_aimlapi():
+        audio_bytes = _aimlapi_tts(text, voice_id, model)
+    else:
+        from scripts.ai_client import openai_client
+
+        client = openai_client()
+        speech = client.audio.speech.create(model=model, voice=voice_id, input=text)
+        audio_bytes = speech.read() if hasattr(speech, "read") else bytes(speech.content)
+    try:
+        words = _align_audio_bytes(audio_bytes, language, text)
+    except Exception:
+        words = _even_word_timings(text, max(1.5, len(text.split()) * 0.35))
     return {"audio_bytes": audio_bytes, "words": words, "alignment_source": "whisper"}
 
 
-def _align_audio_bytes(audio_bytes: bytes, language: str) -> list[dict[str, Any]]:
+def _aimlapi_tts(text: str, voice_id: str, model: str) -> bytes:
+    import requests
+
+    from scripts.ai_client import AIMLAPI_BASE_URL, ai_api_key
+
+    key = ai_api_key()
+    if not key:
+        raise RuntimeError("Set AIMLAPI_KEY (or OPENAI_API_KEY)")
+    aiml_model = model if "/" in model else f"openai/{model}"
+    response = requests.post(
+        f"{AIMLAPI_BASE_URL.rstrip('/')}/tts",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={
+            "model": aiml_model,
+            "text": text,
+            "voice": voice_id or "nova",
+            "response_format": "mp3",
+        },
+        timeout=120,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"AIMLAPI TTS error {response.status_code}: {response.text[:300]}")
+    ctype = (response.headers.get("Content-Type") or "").lower()
+    if "application/json" in ctype:
+        data = response.json()
+        url = data.get("audio") or (data.get("data") or {}).get("url") or ""
+        if not url:
+            raise RuntimeError(f"AIMLAPI TTS JSON had no audio URL: {str(data)[:200]}")
+        audio = requests.get(url, timeout=120)
+        audio.raise_for_status()
+        return audio.content
+    return response.content
+
+
+def _even_word_timings(text: str, duration: float) -> list[dict[str, Any]]:
+    tokens = [t for t in re.findall(r"\S+", text)]
+    if not tokens:
+        return [{"word": text or "x", "start": 0.0, "end": duration}]
+    each = duration / len(tokens)
+    words = []
+    t = 0.0
+    for token in tokens:
+        words.append({"word": token, "start": round(t, 3), "end": round(t + each, 3)})
+        t += each
+    return words
+
+
+def _align_audio_bytes(audio_bytes: bytes, language: str, text: str = "") -> list[dict[str, Any]]:
     import tempfile
 
     suffix = ".mp3"
@@ -268,7 +327,12 @@ def _align_audio_bytes(audio_bytes: bytes, language: str) -> list[dict[str, Any]
         try:
             return _align_whisper_timestamped(path, language)
         except ImportError:
-            return _align_openai_whisper(path, language)
+            try:
+                return _align_openai_whisper(path, language)
+            except Exception:
+                if text:
+                    return _even_word_timings(text, max(1.5, len(text.split()) * 0.35))
+                raise
     finally:
         Path(path).unlink(missing_ok=True)
 
@@ -298,9 +362,9 @@ def _align_whisper_timestamped(audio_path: str, language: str) -> list[dict[str,
 
 
 def _align_openai_whisper(audio_path: str, language: str) -> list[dict[str, Any]]:
-    from openai import OpenAI
+    from scripts.ai_client import openai_client
 
-    client = OpenAI()
+    client = openai_client()
     lang = "fr" if language.lower().startswith("fr") else "en"
     with open(audio_path, "rb") as fh:
         transcript = client.audio.transcriptions.create(

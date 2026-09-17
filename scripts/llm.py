@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from typing import Any
 
@@ -42,12 +41,14 @@ def chat_json(
         }
         return payload, 0.0
 
-    from openai import APIConnectionError, APIStatusError, OpenAI, RateLimitError
+    from openai import APIConnectionError, APIStatusError, RateLimitError
 
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY is not set")
+    from scripts.ai_client import ai_api_key, openai_client
 
-    client = OpenAI()
+    if not ai_api_key():
+        raise RuntimeError("Set AIMLAPI_KEY (or OPENAI_API_KEY)")
+
+    client = openai_client()
     last_error: Exception | None = None
     for attempt in range(max_attempts):
         try:

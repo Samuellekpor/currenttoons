@@ -6,7 +6,7 @@ Import `workflows/topic-monitoring.json` into a **self-hosted** n8n (the Execute
 
 1. On the host, set `PIPELINE_ROOT` to this repo (the directory that contains `scripts/` and `.venv/`).
 2. The venv must already exist (`python3 -m venv .venv && pip install -r requirements.txt`).
-3. `.env` must contain `NEWSAPI_KEY`, `OPENAI_API_KEY`, `GOOGLE_SHEETS_CREDENTIALS_PATH`.
+3. `.env` must contain `NEWSAPI_KEY`, `AIMLAPI_KEY` (or `OPENAI_API_KEY`), `GOOGLE_SHEETS_CREDENTIALS_PATH`.
 4. Replace `google_sheet_id` in each channel config.
 5. Import the workflow, then activate it.
 

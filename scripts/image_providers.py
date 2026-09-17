@@ -1,4 +1,4 @@
-"""Shared image generation (Replicate / fal.ai). Preview first; upscale later."""
+"""Shared image generation (AIMLAPI / Replicate / fal.ai). Preview first; upscale later."""
 
 from __future__ import annotations
 
@@ -20,17 +20,23 @@ REPLICATE_IMG2IMG_DEFAULT = "black-forest-labs/flux-kontext-pro"
 REPLICATE_TXT2IMG_DEFAULT = "black-forest-labs/flux-schnell"
 FAL_IMG2IMG_DEFAULT = "fal-ai/flux-pro/kontext"
 FAL_TXT2IMG_DEFAULT = "fal-ai/flux/schnell"
+AIMLAPI_TXT2IMG_DEFAULT = "flux/schnell"
+AIMLAPI_IMG2IMG_DEFAULT = "flux/kontext-pro/image-to-image"
 
 
 def _provider() -> str:
     explicit = (os.environ.get("IMAGE_PROVIDER") or "").strip().lower()
-    if explicit in {"replicate", "fal"}:
+    if explicit in {"replicate", "fal", "aimlapi"}:
         return explicit
+    from scripts.ai_client import uses_aimlapi
+
+    if uses_aimlapi():
+        return "aimlapi"
     if os.environ.get("REPLICATE_API_TOKEN"):
         return "replicate"
     if os.environ.get("FAL_KEY"):
         return "fal"
-    raise RuntimeError("Set REPLICATE_API_TOKEN or FAL_KEY (or IMAGE_PROVIDER)")
+    raise RuntimeError("Set AIMLAPI_KEY, REPLICATE_API_TOKEN, or FAL_KEY (or IMAGE_PROVIDER)")
 
 
 def _output_url(output: Any) -> str:
@@ -77,6 +83,32 @@ def _fal_run(model: str, payload: dict[str, Any]) -> str:
     return _output_url(data)
 
 
+def _aimlapi_run(payload: dict[str, Any]) -> str:
+    import requests
+
+    from scripts.ai_client import AIMLAPI_BASE_URL, ai_api_key
+
+    key = ai_api_key()
+    if not key:
+        raise RuntimeError("Set AIMLAPI_KEY (or OPENAI_API_KEY)")
+    response = requests.post(
+        f"{AIMLAPI_BASE_URL.rstrip('/')}/images/generations",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=180,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"AIMLAPI image error {response.status_code}: {response.text[:300]}")
+    data = response.json()
+    if data.get("data"):
+        return _output_url(data["data"])
+    if data.get("images"):
+        return _output_url(data["images"])
+    if data.get("output"):
+        return _output_url(data["output"])
+    return _output_url(data)
+
+
 def generate_image(
     prompt: str,
     aspect_ratio: str,
@@ -117,6 +149,22 @@ def generate_image(
             if quality == "preview":
                 payload["go_fast"] = True
         url = _replicate_run(model, payload)
+    elif provider == "aimlapi":
+        ratio = "1:1" if aspect_ratio in {"match_input_image", ""} else aspect_ratio
+        if reference_image_url:
+            payload = {
+                "model": os.environ.get("AIMLAPI_IMG2IMG_MODEL") or AIMLAPI_IMG2IMG_DEFAULT,
+                "prompt": prompt,
+                "image_url": reference_image_url,
+                "aspect_ratio": ratio,
+            }
+        else:
+            payload = {
+                "model": os.environ.get("AIMLAPI_TXT2IMG_MODEL") or AIMLAPI_TXT2IMG_DEFAULT,
+                "prompt": prompt,
+                "aspect_ratio": ratio,
+            }
+        url = _aimlapi_run(payload)
     else:
         if reference_image_url:
             model = os.environ.get("FAL_IMG2IMG_MODEL") or FAL_IMG2IMG_DEFAULT

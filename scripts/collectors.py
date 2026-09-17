@@ -10,7 +10,7 @@ from xml.etree.ElementTree import ParseError
 
 import requests
 
-USER_AGENT = "currenttoons-pipeline/0.1 (topic-monitoring)"
+USER_AGENT = "currenttoons/0.1 (topic-monitoring)"
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
 NEWSAPI_HEADLINES_URL = "https://newsapi.org/v2/top-headlines"
 
@@ -61,59 +61,20 @@ def _request_with_retry(
                 time.sleep(min(wait, 8))
                 last_error = RuntimeError(f"HTTP {response.status_code} for {url}")
                 continue
+            if 400 <= response.status_code < 500:
+                raise RuntimeError(f"HTTP {response.status_code} for {url}")
             response.raise_for_status()
             return response
         except requests.RequestException as exc:
             last_error = exc
-            time.sleep(1.5 * (attempt + 1))
+            if attempt < max_attempts - 1:
+                time.sleep(1.5 * (attempt + 1))
     raise RuntimeError(f"Request failed after {max_attempts} attempts: {last_error}")
 
 
-def collect_newsapi(config: dict[str, Any], api_key: str) -> list[dict[str, str]]:
-    monitoring = config.get("monitoring") or {}
-    news = monitoring.get("newsapi") or {}
-    keywords = news.get("keywords") or []
-    query = combine_newsapi_query(keywords)
-    if not query:
-        raise ValueError("monitoring.newsapi.keywords is empty")
-    max_topics = int(monitoring.get("max_topics") or news.get("page_size") or 8)
-    page_size = min(int(news.get("page_size") or max_topics), max_topics, 20)
-    max_requests = max(1, int(monitoring.get("max_requests_per_run") or 1))
-
-    params = {
-        "q": query,
-        "sortBy": news.get("sort_by") or "publishedAt",
-        "pageSize": page_size,
-        "page": 1,
-        "apiKey": api_key,
-    }
-    language = str(news.get("language") or "").strip().lower()
-    if language and language not in {"all", "*"}:
-        params["language"] = language
-    headers = {"User-Agent": USER_AGENT, "X-Api-Key": api_key}
-    try:
-        response = _request_with_retry(NEWSAPI_URL, params=params, headers=headers)
-        payload = response.json()
-    except RuntimeError:
-        if max_requests < 2:
-            raise
-        headline_params = {
-            "pageSize": page_size,
-            "apiKey": api_key,
-        }
-        if news.get("category"):
-            headline_params["category"] = news["category"]
-        if news.get("country"):
-            headline_params["country"] = news["country"]
-        q = keywords[0] if keywords else None
-        if q:
-            headline_params["q"] = q
-        response = _request_with_retry(NEWSAPI_HEADLINES_URL, params=headline_params, headers=headers)
-        payload = response.json()
-
+def _items_from_newsapi_payload(payload: dict[str, Any], max_topics: int) -> list[dict[str, str]]:
     if payload.get("status") != "ok":
         raise RuntimeError(payload.get("message") or "NewsAPI error")
-
     items = []
     for article in payload.get("articles") or []:
         url = article.get("url") or ""
@@ -131,6 +92,50 @@ def collect_newsapi(config: dict[str, Any], api_key: str) -> list[dict[str, str]
         )
         if len(items) >= max_topics:
             break
+    return items
+
+
+def collect_newsapi(config: dict[str, Any], api_key: str) -> list[dict[str, str]]:
+    monitoring = config.get("monitoring") or {}
+    news = monitoring.get("newsapi") or {}
+    keywords = news.get("keywords") or []
+    query = combine_newsapi_query(keywords)
+    if not query:
+        raise ValueError("monitoring.newsapi.keywords is empty")
+    max_topics = int(monitoring.get("max_topics") or news.get("page_size") or 8)
+    page_size = min(int(news.get("page_size") or max_topics), max_topics, 20)
+
+    params = {
+        "q": query,
+        "sortBy": news.get("sort_by") or "publishedAt",
+        "pageSize": page_size,
+        "page": 1,
+        "apiKey": api_key,
+    }
+    language = str(news.get("language") or "").strip().lower()
+    if language and language not in {"all", "*"}:
+        params["language"] = language
+    headers = {"User-Agent": USER_AGENT, "X-Api-Key": api_key}
+
+    response = _request_with_retry(NEWSAPI_URL, params=params, headers=headers)
+    items = _items_from_newsapi_payload(response.json(), max_topics)
+    # popularity + a very broad OR query often returns totalResults > 0 and articles=[].
+    if not items and str(params.get("sortBy") or "").lower() != "publishedat":
+        fallback = dict(params)
+        fallback["sortBy"] = "publishedAt"
+        response = _request_with_retry(NEWSAPI_URL, params=fallback, headers=headers)
+        items = _items_from_newsapi_payload(response.json(), max_topics)
+    if not items:
+        headline_params = {
+            "pageSize": page_size,
+            "apiKey": api_key,
+        }
+        if news.get("category"):
+            headline_params["category"] = news["category"]
+        if news.get("country"):
+            headline_params["country"] = news["country"]
+        response = _request_with_retry(NEWSAPI_HEADLINES_URL, params=headline_params, headers=headers)
+        items = _items_from_newsapi_payload(response.json(), max_topics)
     return items
 
 
@@ -182,30 +187,38 @@ def collect_reddit(subreddits: list[str], *, limit_per_sub: int = 3) -> list[dic
     items: list[dict[str, str]] = []
     headers = {"User-Agent": USER_AGENT}
     for sub in subreddits:
-        url = f"https://www.reddit.com/r/{quote_plus(sub)}/hot.json"
+        children: list[dict[str, Any]] = []
         try:
             response = _request_with_retry(
-                url,
+                f"https://www.reddit.com/r/{quote_plus(sub)}/hot.json",
                 params={"limit": limit_per_sub, "raw_json": 1},
                 headers=headers,
             )
             children = (response.json().get("data") or {}).get("children") or []
         except (RuntimeError, ValueError):
-            continue
-        for child in children:
-            data = child.get("data") or {}
-            if data.get("stickied"):
-                continue
-            permalink = data.get("permalink") or ""
-            article_url = f"https://www.reddit.com{permalink}" if permalink else (data.get("url") or "")
-            items.append(
-                normalize_item(
-                    title=data.get("title") or "",
-                    url=article_url,
-                    source=f"reddit/r/{sub}",
-                    excerpt=data.get("selftext") or "",
+            children = []
+        if children:
+            for child in children:
+                data = child.get("data") or {}
+                if data.get("stickied"):
+                    continue
+                permalink = data.get("permalink") or ""
+                article_url = f"https://www.reddit.com{permalink}" if permalink else (data.get("url") or "")
+                items.append(
+                    normalize_item(
+                        title=data.get("title") or "",
+                        url=article_url,
+                        source=f"reddit/r/{sub}",
+                        excerpt=data.get("selftext") or "",
+                    )
                 )
-            )
+            continue
+        rss_url = f"https://www.reddit.com/r/{quote_plus(sub)}/hot/.rss"
+        try:
+            response = _request_with_retry(rss_url, headers=headers)
+        except RuntimeError:
+            continue
+        items.extend(_parse_feed_xml(response.text, f"reddit/r/{sub}", limit_per_sub))
     return items
 
 
@@ -315,7 +328,11 @@ def collect_topics_for_channel(config: dict[str, Any], *, dry_run: bool, newsapi
     if collect_news:
         if not newsapi_key:
             raise RuntimeError("NEWSAPI_KEY is not set")
-        extend(collect_newsapi(config, newsapi_key))
+        try:
+            extend(collect_newsapi(config, newsapi_key))
+        except RuntimeError:
+            if not collect_web:
+                raise
     if collect_web:
         web_config = dict(config)
         web_monitoring = dict(monitoring)

@@ -31,7 +31,7 @@
     "newsapi": {
       "language": "all",
       "category": "entertainment",
-      "sort_by": "popularity",
+      "sort_by": "publishedAt",
       "page_size": 6,
       "keywords": [
         "celebrity",

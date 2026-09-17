@@ -1,5 +1,5 @@
 from scripts.config import load_channel_config
-from scripts.script_generation import generate_script, normalize_format, normalize_language
+from scripts.script_generation import FORMAT_SPECS, generate_script, normalize_format, normalize_language
 from scripts.topic_analysis import STATUS_ACCEPTED, STATUS_SCRIPT_GENERATED
 
 
@@ -31,6 +31,8 @@ def test_generate_script_dry_run_short_fr_names_characters():
     joined_dialogue = " ".join(scene["dialogue"] for scene in payload["scenes"])
     assert "Emmanuel Macron" in joined_visuals
     assert "Réplique" in joined_dialogue
+    assert payload["scenes"][0]["duration_s"] <= 4
+    assert "hook" in payload["scenes"][0]["visual"].lower()
 
 
 def test_generate_script_dry_run_long_en():
@@ -51,6 +53,8 @@ def test_generate_script_dry_run_long_en():
     assert payload["aspect_ratio"] == "16:9"
     assert len(payload["scenes"]) >= 8
     assert all("16:9" in scene["visual"] for scene in payload["scenes"])
+    assert payload["scenes"][0]["duration_s"] <= 5
+    assert "hook" in payload["scenes"][0]["visual"].lower()
 
 
 def test_generate_script_rejects_wrong_status():
@@ -65,6 +69,11 @@ def test_generate_script_rejects_wrong_status():
         assert False, "expected ValueError"
     except ValueError as exc:
         assert "Accepté" in str(exc)
+
+
+def test_format_specs_require_opening_hook():
+    assert "hook" in FORMAT_SPECS["Court"]["structure"]
+    assert "hook" in FORMAT_SPECS["Long"]["structure"]
 
 
 def test_status_constant_for_sheet_update():

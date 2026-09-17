@@ -272,18 +272,55 @@ DRY_RUN_SAMPLES = {
             excerpt="Un article sur le sommeil, sans personnalité publique.",
         )
     ],
+    "odd_web": [
+        normalize_item(
+            title="A man accidentally trained seagulls to steal his chips every lunch",
+            url="https://dry-run.local/odd/seagulls",
+            source="reddit/r/nottheonion",
+            excerpt="A seaside lunch ritual went viral after the birds started waiting for him by name.",
+        )
+    ],
 }
 
 
 def collect_topics_for_channel(config: dict[str, Any], *, dry_run: bool, newsapi_key: str | None) -> list[dict[str, str]]:
     monitoring = config.get("monitoring") or {}
     provider = (monitoring.get("provider") or "newsapi").lower()
+    max_topics = int(monitoring.get("max_topics") or 8)
+    extra_web = provider in {"newsapi", "mixed"} and bool(monitoring.get("collectors"))
+    collect_news = provider in {"newsapi", "mixed"}
+    collect_web = provider == "web" or extra_web
     if dry_run:
-        return list(DRY_RUN_SAMPLES.get(provider, DRY_RUN_SAMPLES["web"]))
-    if provider == "newsapi":
+        samples = list(
+            DRY_RUN_SAMPLES.get("newsapi" if collect_news else provider, DRY_RUN_SAMPLES["web"])
+        )
+        if extra_web:
+            samples = samples + list(DRY_RUN_SAMPLES.get("odd_web") or [])
+        return samples[:max_topics]
+
+    if not collect_news and not collect_web:
+        raise ValueError(f"Unknown monitoring.provider: {provider}")
+
+    items: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    def extend(batch: list[dict[str, str]]) -> None:
+        for item in batch:
+            url = item.get("url") or ""
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            items.append(item)
+
+    if collect_news:
         if not newsapi_key:
             raise RuntimeError("NEWSAPI_KEY is not set")
-        return collect_newsapi(config, newsapi_key)
-    if provider == "web":
-        return collect_web_sources(config)
-    raise ValueError(f"Unknown monitoring.provider: {provider}")
+        extend(collect_newsapi(config, newsapi_key))
+    if collect_web:
+        web_config = dict(config)
+        web_monitoring = dict(monitoring)
+        if extra_web:
+            web_monitoring["max_topics"] = max(2, max_topics - len(items))
+        web_config["monitoring"] = web_monitoring
+        extend(collect_web_sources(web_config))
+    return items[:max_topics]

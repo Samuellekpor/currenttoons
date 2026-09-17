@@ -15,7 +15,7 @@ FORMAT_SPECS = {
         "shots": "3-5",
         "shot_min": 3,
         "shot_max": 5,
-        "structure": "one angle / one punchline",
+        "structure": "hook in shot 1 (2-4s), then one punchline",
         "aspect_ratio": "9:16",
         "framing": "vertical 9:16",
         "width": 1080,
@@ -26,7 +26,7 @@ FORMAT_SPECS = {
         "shots": "multiple segments/chapters",
         "shot_min": 8,
         "shot_max": 20,
-        "structure": "several segments; may develop more than one satirical angle on the same topic",
+        "structure": "hook in the first 5 seconds, then several satirical chapters on the same topic",
         "aspect_ratio": "16:9",
         "framing": "horizontal 16:9",
         "width": 1920,
@@ -89,24 +89,44 @@ def _dry_run_script(language: str, video_format: str, characters: list[str], tit
         scenes = []
         for i in range(4):
             who = names[i % len(names)]
-            if language == "EN":
+            if i == 0:
+                duration = 3
+                if language == "EN":
+                    visual = f"Vertical 9:16 hook: freeze-frame caricature of {who}, shocked close-up."
+                    voice = f"Wait. {title} — you are not ready."
+                else:
+                    visual = f"Cadrage vertical 9:16, hook : gros plan choqué, caricature de {who}."
+                    voice = f"Attends. {title} — tu n'es pas prêt."
+            elif language == "EN":
+                duration = 12
                 visual = f"Vertical 9:16 caricature of {who}, exaggerated features, simple background."
                 voice = f"Dry-run line {i + 1} about {title}."
             else:
+                duration = 12
                 visual = f"Cadrage vertical 9:16, caricature de {who}, traits exagérés, fond simple."
                 voice = f"Réplique dry-run {i + 1} sur {title}."
-            scenes.append({"shot": i + 1, "duration_s": 12, "visual": visual, "dialogue": voice})
+            scenes.append({"shot": i + 1, "duration_s": duration, "visual": visual, "dialogue": voice})
     else:
         scenes = []
         for i in range(10):
             who = names[i % len(names)]
-            if language == "EN":
+            if i == 0:
+                duration = 5
+                if language == "EN":
+                    visual = f"Horizontal 16:9 hook freeze on {who}."
+                    voice = f"Hold on. {title}."
+                else:
+                    visual = f"Plan horizontal 16:9, hook freeze sur {who}."
+                    voice = f"Attends. {title}."
+            elif language == "EN":
+                duration = 30
                 visual = f"Horizontal 16:9 scene featuring {who} in chapter {i // 3 + 1}."
                 voice = f"Chapter beat {i + 1} (dry-run)."
             else:
+                duration = 30
                 visual = f"Plan horizontal 16:9 avec {who}, chapitre {i // 3 + 1}."
                 voice = f"Segment {i + 1} (dry-run)."
-            scenes.append({"shot": i + 1, "duration_s": 30, "visual": visual, "dialogue": voice})
+            scenes.append({"shot": i + 1, "duration_s": duration, "visual": visual, "dialogue": voice})
     return {
         "title": title,
         "language": language,
@@ -147,6 +167,8 @@ def generate_script(
         f"Suggested video title: {row.get('Titre Vidéo Suggéré')}\n"
         f"Angle: {row.get('Angle Proposé')}\n"
         f"Identified public figures (name each explicitly in visuals): {', '.join(characters) or '(none)'}\n"
+        "The FIRST scene must be a powerful hook (2-4 seconds): a question, a shock, or a 'wait for it' tease. "
+        "Never start with a slow recap or 'today we talk about'.\n"
         "Return JSON with keys: title, language, format, aspect_ratio, target_duration, "
         "characters (array of real names used), scenes (array of {shot, duration_s, visual, dialogue}).\n"
     )

@@ -16,6 +16,9 @@ def test_channel_monitoring_providers():
     assert current["monitoring"]["provider"] == "newsapi"
     assert second["monitoring"]["provider"] == "web"
     assert "celebrity" in current["monitoring"]["newsapi"]["keywords"]
+    assert "bizarre" in current["monitoring"]["newsapi"]["keywords"]
+    assert "nottheonion" in current["monitoring"]["reddit"]["subreddits"]
+    assert current["monitoring"]["collectors"] == ["reddit"]
     assert "politique française" not in current["monitoring"]["newsapi"]["keywords"]
 
 
@@ -26,6 +29,7 @@ def test_collect_dry_run_is_local(monkeypatch):
     assert items
     assert items[0]["url"].startswith("https://dry-run.local/")
     assert "title" in items[0] and "excerpt" in items[0]
+    assert any("seagulls" in item["title"].lower() for item in items)
 
 
 def test_analyze_dry_run_extracts_public_figures():

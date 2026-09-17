@@ -26,13 +26,13 @@
   "x_auto_publish": false,
   "monitoring": {
     "provider": "newsapi",
-    "max_topics": 8,
+    "max_topics": 10,
     "max_requests_per_run": 1,
     "newsapi": {
       "language": "all",
       "category": "entertainment",
       "sort_by": "popularity",
-      "page_size": 8,
+      "page_size": 6,
       "keywords": [
         "celebrity",
         "viral",
@@ -47,8 +47,24 @@
         "Drake",
         "Taylor Swift",
         "Trump",
-        "box office"
+        "box office",
+        "bizarre",
+        "astonishing",
+        "weird news",
+        "offbeat",
+        "unbelievable"
       ]
+    },
+    "collectors": ["reddit"],
+    "reddit": {
+      "subreddits": [
+        "nottheonion",
+        "interestingasfuck",
+        "mildlyinteresting",
+        "Damnthatsinteresting",
+        "offbeat"
+      ],
+      "limit_per_sub": 2
     }
   }
 }

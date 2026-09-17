@@ -15,7 +15,8 @@ def test_channel_monitoring_providers():
     second = load_channel_config("habitlens")
     assert current["monitoring"]["provider"] == "newsapi"
     assert second["monitoring"]["provider"] == "web"
-    assert current["topic_analysis_prompt_path"].endswith("currenttoons_topic_analysis.md")
+    assert "celebrity" in current["monitoring"]["newsapi"]["keywords"]
+    assert "politique française" not in current["monitoring"]["newsapi"]["keywords"]
 
 
 def test_collect_dry_run_is_local(monkeypatch):

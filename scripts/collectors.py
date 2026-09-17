@@ -82,12 +82,14 @@ def collect_newsapi(config: dict[str, Any], api_key: str) -> list[dict[str, str]
 
     params = {
         "q": query,
-        "language": news.get("language") or "fr",
         "sortBy": news.get("sort_by") or "publishedAt",
         "pageSize": page_size,
         "page": 1,
         "apiKey": api_key,
     }
+    language = str(news.get("language") or "").strip().lower()
+    if language and language not in {"all", "*"}:
+        params["language"] = language
     headers = {"User-Agent": USER_AGENT, "X-Api-Key": api_key}
     try:
         response = _request_with_retry(NEWSAPI_URL, params=params, headers=headers)
@@ -96,10 +98,13 @@ def collect_newsapi(config: dict[str, Any], api_key: str) -> list[dict[str, str]
         if max_requests < 2:
             raise
         headline_params = {
-            "country": news.get("country") or "fr",
             "pageSize": page_size,
             "apiKey": api_key,
         }
+        if news.get("category"):
+            headline_params["category"] = news["category"]
+        if news.get("country"):
+            headline_params["country"] = news["country"]
         q = keywords[0] if keywords else None
         if q:
             headline_params["q"] = q
@@ -253,10 +258,10 @@ def collect_web_sources(config: dict[str, Any]) -> list[dict[str, str]]:
 DRY_RUN_SAMPLES = {
     "newsapi": [
         normalize_item(
-            title="Le gouvernement présente un budget rectificatif",
-            url="https://dry-run.local/fr/budget",
-            source="Le Journal Factice",
-            excerpt="Emmanuel Macron et la Première ministre détaillent des mesures économiques devant l'Assemblée.",
+            title="Rihanna and Drake spark another viral night out",
+            url="https://dry-run.local/celebs/rihanna-drake",
+            source="Pop Desk Factice",
+            excerpt="Rihanna and Drake are all over social media after a surprise appearance that fans cannot stop sharing.",
         )
     ],
     "web": [

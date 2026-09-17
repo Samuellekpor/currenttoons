@@ -6,11 +6,15 @@
   "image_style_prompt_path": "prompts/currenttoons/image_style.txt",
   "uses_caricatures": true,
   "elevenlabs_voice_id": {
-    "fr": "REPLACE_WITH_ELEVENLABS_VOICE_ID_FR",
-    "en": "REPLACE_WITH_ELEVENLABS_VOICE_ID_EN"
+    "fr": "Hy28BjVfgieDVMiyQpQe",
+    "en": "vrzf30JViL81pJHyaGSU"
   },
   "tts_provider": "elevenlabs",
   "tts_model": "eleven_multilingual_v2",
+  "tts_voice_id": {
+    "fr": "nova",
+    "en": "onyx"
+  },
   "background_music_url": "",
   "background_music_volume": 0.12,
   "default_language": "fr",
@@ -25,16 +29,25 @@
     "max_topics": 8,
     "max_requests_per_run": 1,
     "newsapi": {
-      "language": "fr",
-      "country": "fr",
-      "sort_by": "publishedAt",
+      "language": "all",
+      "category": "entertainment",
+      "sort_by": "popularity",
       "page_size": 8,
       "keywords": [
-        "actualité France",
-        "gouvernement",
-        "économie française",
-        "Assemblée nationale",
-        "politique française"
+        "celebrity",
+        "viral",
+        "Hollywood",
+        "red carpet",
+        "pop star",
+        "rapper",
+        "actor",
+        "Grammy",
+        "Oscars",
+        "Rihanna",
+        "Drake",
+        "Taylor Swift",
+        "Trump",
+        "box office"
       ]
     }
   }

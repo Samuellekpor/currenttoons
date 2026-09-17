@@ -46,7 +46,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Renseigner `.env`. Placer le JSON du service account Google hors git, chemin dans `GOOGLE_SHEETS_CREDENTIALS_PATH`.
+Renseigner `.env`. Pour l'IA, une clé **AIMLAPI** (`AIMLAPI_KEY`) suffit pour chat, images et TTS de secours. Placer le JSON du service account Google hors git, chemin dans `GOOGLE_SHEETS_CREDENTIALS_PATH`.
 
 ### Banque Personnages
 
@@ -93,11 +93,11 @@ python scripts/confirm_publish.py --channel currenttoons --row-id 2 --dry-run
 pytest
 ```
 
-Sans `--dry-run`, NewsAPI / OpenAI / Replicate ou fal.ai sont appelés. Les images de scène sont d'abord en **preview** ; `--upscale` est réservé aux visuels retenus avant montage.
+Sans `--dry-run`, NewsAPI / AIMLAPI (ou OpenAI / Replicate / fal) sont appelés. Les images de scène sont d'abord en **preview** ; `--upscale` est réservé aux visuels retenus avant montage.
 
 ## Veille
 
-- CurrentToons : un seul appel NewsAPI (`everything`) avec les mots-clés du config combinés en `OR`, retry léger sur 429/5xx, pas de pagination.
+- CurrentToons : un seul appel NewsAPI (`everything`), mots-clés **people / viral / stars** mondiaux (pas la politique FR), `sortBy=popularity`, retry léger sur 429/5xx.
 - HabitLens : RSS + Reddit + Google Trends RSS, listés dans `channels/habitlens.config.json`.
 - Analyse : `prompts/<channel>_topic_analysis.md` via `gpt-4o-mini` (angle, titre, personnages publics).
 - Script : `prompts/<channel>_script_generation.md`, langue + format de la ligne (`Court` 9:16 45-60s / `Long` 16:9 4-8 min).

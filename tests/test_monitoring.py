@@ -1,6 +1,6 @@
 from scripts.collectors import combine_newsapi_query, collect_topics_for_channel
 from scripts.config import load_channel_config
-from scripts.topic_analysis import TOPIC_SHEET_COLUMNS, analyze_topic, delivery_options_from_row, to_sheet_row
+from scripts.topic_analysis import TOPIC_SHEET_COLUMNS, analyze_topic, delivery_options_from_row, rejected_row_indexes, to_sheet_row
 
 
 def test_newsapi_query_combines_phrases():
@@ -68,3 +68,15 @@ def test_delivery_options_only_when_accepted():
     row["Format Vidéo (Court/Long)"] = "Court"
     row["Langue (FR/EN)"] = "FR"
     assert delivery_options_from_row(row) == {"format": "Court", "language": "FR"}
+
+
+def test_rejected_rows_are_listed_bottom_up_ready():
+    records = [
+        {"Statut (À Revoir/Accepté/Rejeté)": "À Revoir"},
+        {"Statut (À Revoir/Accepté/Rejeté)": "Rejeté"},
+        {"Statut (À Revoir/Accepté/Rejeté)": "Accepté"},
+        {"Statut (À Revoir/Accepté/Rejeté)": "Rejeté"},
+    ]
+    indexes = rejected_row_indexes(records)
+    assert indexes == [3, 5]
+    assert sorted(indexes, reverse=True) == [5, 3]

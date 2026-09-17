@@ -99,8 +99,9 @@ Sans `--dry-run`, NewsAPI / AIMLAPI (ou OpenAI / Replicate / fal) sont appelés.
 
 - CurrentToons : un seul appel NewsAPI (`everything`), mots-clés **people / viral / stars** mondiaux (pas la politique FR), `sortBy=popularity`, retry léger sur 429/5xx.
 - HabitLens : RSS + Reddit + Google Trends RSS, listés dans `channels/habitlens.config.json`.
-- Analyse : `prompts/<channel>_topic_analysis.md` via `gpt-4o-mini` (angle, titre, personnages publics).
-- Script : `prompts/<channel>_script_generation.md`, langue + format de la ligne (`Court` 9:16 45-60s / `Long` 16:9 4-8 min).
+- Analyse : `prompts/<channel>_topic_analysis.md` via `gpt-4o-mini` (CurrentToons : réécriture sarcastique, pas un résumé).
+- Script : `prompts/<channel>_script_generation.md` (CurrentToons : sketch humoristique sur le moment viral).
+- Les lignes Sheet en statut `Rejeté` sont **supprimées** au prochain `collect_topics.py`.
 - Images : `get_or_create_caricature` (Wikimedia + img2img, réutilisation banque) puis `generate_image(..., quality=preview)`.
 - Voix-off : ElevenLabs (CurrentToons, timestamps natifs) ou OpenAI `tts-1` (HabitLens : nova FR / onyx EN) + SRT dans la langue opposée via `gpt-4o-mini`.
 - Montage : FFmpeg (`1080x1920` court / `1920x1080` long), synchro timestamps, sous-titres langue opposée incrustés, musique de fond, chapitres YouTube (format long).

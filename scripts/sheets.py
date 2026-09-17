@@ -159,3 +159,20 @@ def upsert_record(
     new_row = [values.get(h, "") for h in headers]
     ws.append_row(new_row, value_input_option="USER_ENTERED")
     return {**values, "_created": True}
+
+
+def delete_rejected_rows(
+    sheet_id: str,
+    tab: str,
+    *,
+    credentials_path: str | None = None,
+) -> dict[str, Any]:
+    """Remove rows whose status is Rejeté (highest index first so numbers stay valid)."""
+    from scripts.topic_analysis import rejected_row_indexes
+
+    ws = open_worksheet(sheet_id, tab, credentials_path=credentials_path)
+    records = ws.get_all_records()
+    indexes = rejected_row_indexes(records)
+    for idx in sorted(indexes, reverse=True):
+        ws.delete_rows(idx)
+    return {"applied": True, "deleted": len(indexes), "rows": indexes}

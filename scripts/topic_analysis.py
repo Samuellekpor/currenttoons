@@ -38,6 +38,7 @@ TOPIC_SHEET_COLUMNS = [
 
 STATUS_REVIEW = "À Revoir"
 STATUS_ACCEPTED = "Accepté"
+STATUS_REJECTED = "Rejeté"
 STATUS_SCRIPT_GENERATED = "Script Généré"
 STATUS_PENDING_VALIDATION = "En Attente de Validation"
 STATUS_PUBLISHED = "Publiée"
@@ -133,6 +134,15 @@ def to_sheet_row(analysis: dict[str, Any], *, today: str | None = None) -> dict[
     }
 
 
+def rejected_row_indexes(records: list[dict[str, Any]], *, start: int = 2) -> list[int]:
+    """1-based sheet row numbers whose status is Rejeté."""
+    indexes = []
+    for i, row in enumerate(records, start=start):
+        if str(row.get("Statut (À Revoir/Accepté/Rejeté)") or "").strip() == STATUS_REJECTED:
+            indexes.append(i)
+    return indexes
+
+
 def write_topics_to_sheet(
     sheet_id: str,
     tab: str,
@@ -142,11 +152,12 @@ def write_topics_to_sheet(
 ) -> dict[str, Any]:
     rows = [to_sheet_row(item) for item in analyses]
     if dry_run:
-        return {"applied": False, "dry_run": True, "rows": rows, "skipped_urls": []}
+        return {"applied": False, "dry_run": True, "rows": rows, "skipped_urls": [], "deleted_rejected": 0}
 
-    from scripts.sheets import ensure_headers, existing_column_values, upsert_record
+    from scripts.sheets import delete_rejected_rows, ensure_headers, existing_column_values, upsert_record
 
     ensure_headers(sheet_id, tab, TOPIC_SHEET_COLUMNS)
+    purged = delete_rejected_rows(sheet_id, tab)
     known = existing_column_values(sheet_id, tab, "URL Article")
     written = []
     skipped = []
@@ -158,7 +169,13 @@ def write_topics_to_sheet(
         upsert_record(sheet_id, tab, match_column="URL Article", match_value=url, values=row)
         written.append(url)
         known.add(url)
-    return {"applied": True, "dry_run": False, "written": written, "skipped_urls": skipped}
+    return {
+        "applied": True,
+        "dry_run": False,
+        "written": written,
+        "skipped_urls": skipped,
+        "deleted_rejected": purged.get("deleted") or 0,
+    }
 
 
 def delivery_options_from_row(row: dict[str, Any]) -> dict[str, str]:

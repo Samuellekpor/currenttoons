@@ -23,6 +23,10 @@ Do not merge or split segments. Translate naturally; do not translate word-by-wo
 Return JSON: {"segments": [{"index": 1, "text": "..."}]}.
 """
 
+TTS_SPEED = 1.2
+SPEECH_ATEMPO = 1.12
+WORD_PACE_S = 0.28
+
 
 def opposite_language(language: str) -> str:
     lang = normalize_language(language)
@@ -154,13 +158,56 @@ def _tts_cost(provider: str, text: str) -> float:
     return estimate_cost("tts_openai")
 
 
-def _dry_run_words(text: str, pace: float = 0.22) -> list[dict[str, Any]]:
+def _scale_word_times(words: list[dict[str, Any]], factor: float) -> list[dict[str, Any]]:
+    scaled = []
+    for item in words:
+        scaled.append(
+            {
+                **item,
+                "start": round(float(item.get("start") or 0) * factor, 3),
+                "end": round(float(item.get("end") or 0) * factor, 3),
+            }
+        )
+    return scaled
+
+
+def _tighten_speech_audio(audio_bytes: bytes) -> bytes:
+    """Drop long pauses and slightly speed the take so shorts stay dense."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not audio_bytes:
+        return audio_bytes
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return audio_bytes
+    af = (
+        "silenceremove=start_periods=1:start_silence=0.04:start_threshold=-38dB:detection=peak,"
+        "silenceremove=stop_periods=-1:stop_duration=0.08:stop_threshold=-38dB:detection=peak,"
+        f"atempo={SPEECH_ATEMPO}"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / "in.mp3"
+        dst = Path(tmp) / "out.mp3"
+        src.write_bytes(audio_bytes)
+        proc = subprocess.run(
+            [ffmpeg, "-hide_banner", "-y", "-i", str(src), "-af", af, "-ar", "44100", str(dst)],
+            capture_output=True,
+            timeout=60,
+        )
+        if proc.returncode != 0 or not dst.exists() or dst.stat().st_size < 80:
+            return audio_bytes
+        return dst.read_bytes()
+
+
+def _dry_run_words(text: str, pace: float = 0.16) -> list[dict[str, Any]]:
     words = []
     t = 0.0
     for token in re.findall(r"\S+", text):
-        dur = max(0.12, pace * max(1, len(token) / 5))
+        dur = max(0.08, pace * max(1, len(token) / 5))
         words.append({"word": token, "start": round(t, 3), "end": round(t + dur, 3)})
-        t += dur + 0.05
+        t += dur + 0.02
     return words
 
 
@@ -196,7 +243,20 @@ def generate_voiceover(
         return payload
 
     if provider == "elevenlabs":
-        result = _elevenlabs_with_timestamps(text, voice_id, model or "eleven_multilingual_v2")
+        try:
+            result = _elevenlabs_with_timestamps(text, voice_id, model or "eleven_multilingual_v2")
+        except RuntimeError as exc:
+            from scripts.ai_client import uses_aimlapi
+
+            message = str(exc)
+            billed_out = any(code in message for code in ("401", "402", "403"))
+            if uses_aimlapi() and billed_out:
+                fallback_voice = "nova" if lang == "fr" else "onyx"
+                result = _openai_tts_then_align(text, fallback_voice, lang, "tts-1")
+                provider = "openai"
+                voice_id = fallback_voice
+            else:
+                raise
     elif provider in {"openai", "openai_tts"}:
         result = _openai_tts_then_align(text, voice_id, lang, model or "tts-1")
     else:
@@ -207,6 +267,15 @@ def generate_voiceover(
     result["provider"] = provider
     result["voice_id"] = voice_id
     result["language"] = lang
+    if result.get("audio_bytes"):
+        tightened = _tighten_speech_audio(result["audio_bytes"])
+        if tightened and tightened != result["audio_bytes"]:
+            result["audio_bytes"] = tightened
+            try:
+                result["words"] = _align_audio_bytes(tightened, lang, text)
+            except Exception:
+                result["words"] = _scale_word_times(result.get("words") or [], 1.0 / SPEECH_ATEMPO)
+            result["pace"] = "tight"
     if audio_path:
         audio_path.parent.mkdir(parents=True, exist_ok=True)
         audio_path.write_bytes(result["audio_bytes"])
@@ -224,14 +293,29 @@ def _elevenlabs_with_timestamps(text: str, voice_id: str, model: str) -> dict[st
         raise RuntimeError("elevenlabs_voice_id is not configured")
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/with-timestamps"
     last_error: Exception | None = None
+    include_speed = True
     for attempt in range(3):
         try:
+            settings = {
+                "stability": 0.35,
+                "similarity_boost": 0.72,
+                "style": 0.4,
+            }
+            if include_speed:
+                settings["speed"] = TTS_SPEED
+            payload = {"text": text, "model_id": model, "voice_settings": settings}
             response = requests.post(
                 url,
                 headers={"xi-api-key": api_key, "Accept": "application/json", "Content-Type": "application/json"},
-                json={"text": text, "model_id": model},
+                json=payload,
                 timeout=120,
             )
+            if response.status_code == 400 and include_speed:
+                include_speed = False
+                last_error = RuntimeError("ElevenLabs rejected speed; retrying without it")
+                continue
+            if response.status_code in {401, 402, 403}:
+                response.raise_for_status()
             if response.status_code in {429, 500, 502, 503}:
                 time.sleep(1.5 * (attempt + 1))
                 last_error = RuntimeError(f"ElevenLabs HTTP {response.status_code}")
@@ -260,12 +344,12 @@ def _openai_tts_then_align(text: str, voice_id: str, language: str, model: str) 
         from scripts.ai_client import openai_client
 
         client = openai_client()
-        speech = client.audio.speech.create(model=model, voice=voice_id, input=text)
+        speech = client.audio.speech.create(model=model, voice=voice_id, input=text, speed=TTS_SPEED)
         audio_bytes = speech.read() if hasattr(speech, "read") else bytes(speech.content)
     try:
         words = _align_audio_bytes(audio_bytes, language, text)
     except Exception:
-        words = _even_word_timings(text, max(1.5, len(text.split()) * 0.35))
+        words = _even_word_timings(text, max(1.2, len(text.split()) * WORD_PACE_S))
     return {"audio_bytes": audio_bytes, "words": words, "alignment_source": "whisper"}
 
 
@@ -286,6 +370,7 @@ def _aimlapi_tts(text: str, voice_id: str, model: str) -> bytes:
             "text": text,
             "voice": voice_id or "nova",
             "response_format": "mp3",
+            "speed": TTS_SPEED,
         },
         timeout=120,
     )
@@ -294,13 +379,45 @@ def _aimlapi_tts(text: str, voice_id: str, model: str) -> bytes:
     ctype = (response.headers.get("Content-Type") or "").lower()
     if "application/json" in ctype:
         data = response.json()
-        url = data.get("audio") or (data.get("data") or {}).get("url") or ""
-        if not url:
-            raise RuntimeError(f"AIMLAPI TTS JSON had no audio URL: {str(data)[:200]}")
-        audio = requests.get(url, timeout=120)
-        audio.raise_for_status()
-        return audio.content
+        url = _first_http_url(data)
+        if url:
+            audio = requests.get(url, timeout=120)
+            audio.raise_for_status()
+            return audio.content
+        b64 = _first_base64_audio(data)
+        if b64:
+            return base64.b64decode(b64)
+        raise RuntimeError(f"AIMLAPI TTS JSON had no audio URL: {str(data)[:200]}")
     return response.content
+
+
+def _first_http_url(data: Any) -> str:
+    if isinstance(data, str) and data.startswith("http"):
+        return data
+    if isinstance(data, dict):
+        for key in ("url", "audio", "audio_url", "output", "data", "file"):
+            if key in data:
+                found = _first_http_url(data[key])
+                if found:
+                    return found
+    if isinstance(data, list) and data:
+        return _first_http_url(data[0])
+    return ""
+
+
+def _first_base64_audio(data: Any) -> str:
+    if isinstance(data, dict):
+        for key in ("audio_base64", "audio", "content"):
+            value = data.get(key)
+            if isinstance(value, str) and not value.startswith("http") and len(value) > 80:
+                return value
+        for value in data.values():
+            found = _first_base64_audio(value)
+            if found:
+                return found
+    if isinstance(data, list) and data:
+        return _first_base64_audio(data[0])
+    return ""
 
 
 def _even_word_timings(text: str, duration: float) -> list[dict[str, Any]]:
@@ -331,7 +448,7 @@ def _align_audio_bytes(audio_bytes: bytes, language: str, text: str = "") -> lis
                 return _align_openai_whisper(path, language)
             except Exception:
                 if text:
-                    return _even_word_timings(text, max(1.5, len(text.split()) * 0.35))
+                    return _even_word_timings(text, max(1.2, len(text.split()) * WORD_PACE_S))
                 raise
     finally:
         Path(path).unlink(missing_ok=True)

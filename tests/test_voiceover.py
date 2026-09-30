@@ -2,6 +2,7 @@ from scripts.config import load_channel_config
 from scripts.script_generation import format_script_cell
 from scripts.topic_analysis import STATUS_SCRIPT_GENERATED
 from scripts.voiceover import (
+    _first_http_url,
     extract_voiceover_text,
     generate_voiceover,
     generate_voiceover_for_row,
@@ -9,6 +10,11 @@ from scripts.voiceover import (
     segments_to_srt,
     srt_timestamp,
 )
+
+
+def test_aimlapi_tts_json_url_shapes():
+    assert _first_http_url({"url": "https://s3.aimlapi.com/files/abc"}) == "https://s3.aimlapi.com/files/abc"
+    assert _first_http_url({"audio": {"url": "https://s3.aimlapi.com/files/abc"}}) == "https://s3.aimlapi.com/files/abc"
 
 
 def test_opposite_language():
@@ -45,6 +51,14 @@ def test_generate_voiceover_dry_run_has_word_timestamps():
     assert result["words"]
     assert result["words"][0]["word"] == "Bonjour"
     assert result["words"][-1]["end"] > result["words"][0]["start"]
+    assert result["words"][-1]["end"] < 1.0
+
+
+def test_scale_word_times_speeds_up_alignment():
+    from scripts.voiceover import _scale_word_times
+
+    scaled = _scale_word_times([{"word": "a", "start": 0.0, "end": 1.0}], 0.5)
+    assert scaled[0]["end"] == 0.5
 
 
 def test_row_pipeline_fr_subtitles_en(tmp_path, monkeypatch):
@@ -87,6 +101,28 @@ def test_habitlens_uses_openai_tts():
     )
     assert payload["provider"] == "openai"
     assert payload["subtitle_language"] == "FR"
+
+
+def test_elevenlabs_payment_error_falls_back_to_aimlapi(monkeypatch):
+    monkeypatch.setenv("AIMLAPI_KEY", "aiml-test")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "el-test")
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("ElevenLabs TTS failed: 402 Client Error: Payment Required")
+
+    monkeypatch.setattr("scripts.voiceover._elevenlabs_with_timestamps", boom)
+    monkeypatch.setattr(
+        "scripts.voiceover._openai_tts_then_align",
+        lambda text, voice, lang, model: {
+            "audio_bytes": b"id3",
+            "words": [{"word": "Hi", "start": 0.0, "end": 0.4}],
+            "alignment_source": "whisper",
+        },
+    )
+    result = generate_voiceover("Hi there", "elevenlabs", "Hy28", "FR", dry_run=False)
+    assert result["provider"] == "openai"
+    assert result["voice_id"] == "nova"
+    assert result["audio_bytes"] == b"id3"
 
 
 def test_requires_images_checked():

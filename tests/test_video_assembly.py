@@ -6,14 +6,19 @@ from scripts.topic_analysis import STATUS_SCRIPT_GENERATED
 from scripts.video_assembly import (
     assemble_video_for_row,
     chapters_from_clips,
+    clip_zoom_expr,
     parse_image_list,
     plan_clips,
     youtube_chapters_text,
     Clip,
+    TRANSITION_S,
 )
 
 
-def test_resolutions():
+def test_clip_motion_alternates_zoom_direction():
+    assert "zoom+0.0015" in clip_zoom_expr(1)
+    assert "zoom-0.0015" in clip_zoom_expr(2)
+    assert TRANSITION_S <= 0.08
     assert FORMAT_SPECS["Court"]["width"] == 1080
     assert FORMAT_SPECS["Court"]["height"] == 1920
     assert FORMAT_SPECS["Long"]["width"] == 1920
@@ -24,6 +29,11 @@ def test_parse_image_list_json():
     items = parse_image_list('[{"shot": 1, "url": "https://x/a.png"}, {"shot": 2, "url": "https://x/b.png"}]')
     assert len(items) == 2
     assert items[0]["shot"] == 1
+    messy = parse_image_list(
+        '[{"shot": "Plan rapproché", "url": "https://x/a.png"}, {"shot": 2, "url": "https://x/b.png"}]'
+    )
+    assert messy[0]["shot"] == 1
+    assert messy[1]["shot"] == 2
 
 
 def test_plan_clips_follows_timestamps(tmp_path):

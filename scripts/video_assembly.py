@@ -17,7 +17,7 @@ from scripts.script_generation import FORMAT_SPECS, normalize_format
 from scripts.topic_analysis import STATUS_SCRIPT_GENERATED, TOPIC_SHEET_COLUMNS
 from scripts.voiceover import segments_to_srt
 
-TRANSITION_S = 0.25
+TRANSITION_S = 0.06
 MUSIC_VOLUME_DEFAULT = 0.12
 
 # 1x1 PNG (red) used as a dry-run still.
@@ -80,7 +80,11 @@ def parse_image_list(raw: Any) -> list[dict[str, Any]]:
         else:
             url = item.get("url") or item.get("path") or ""
             if url:
-                out.append({"shot": int(item.get("shot") or i), "url": url})
+                try:
+                    shot_n = int(item.get("shot") or i)
+                except (TypeError, ValueError):
+                    shot_n = i
+                out.append({"shot": shot_n, "url": url})
     return out
 
 
@@ -169,6 +173,13 @@ def plan_clips(
     return clips
 
 
+def clip_zoom_expr(shot: int) -> str:
+    """Alternate zoom-in / zoom-out so stills feel animated."""
+    if int(shot or 1) % 2:
+        return "min(zoom+0.0015,1.12)"
+    return "if(lte(on,1),1.12,max(zoom-0.0015,1.0))"
+
+
 def _write_silence_wav(path: Path, duration: float = 4.0, rate: int = 44100) -> None:
     n = max(1, int(rate * duration))
     with wave.open(str(path), "w") as fh:
@@ -245,12 +256,22 @@ def run_ffmpeg_assembly(
     fade = TRANSITION_S
     streams = []
     for clip in clips:
-        fade_d = min(fade, max(0.05, clip.duration / 4))
+        fade_d = min(fade, max(0.02, clip.duration / 10))
         out_start = max(0.0, clip.duration - fade_d)
+        over_w, over_h = int(width * 1.2), int(height * 1.2)
         video = ffmpeg.input(str(clip.path), loop=1, t=clip.duration, framerate=30)
         video = (
-            video.video.filter("scale", width, height, force_original_aspect_ratio="decrease")
-            .filter("pad", width, height, "(ow-iw)/2", "(oh-ih)/2", "black")
+            video.video.filter("scale", over_w, over_h, force_original_aspect_ratio="increase")
+            .filter("crop", over_w, over_h)
+            .filter(
+                "zoompan",
+                z=clip_zoom_expr(clip.shot),
+                d=1,
+                x="iw/2-(iw/zoom/2)",
+                y="ih/2-(ih/zoom/2)",
+                s=f"{width}x{height}",
+                fps=30,
+            )
             .filter("fps", 30)
             .filter("format", "yuv420p")
             .filter("fade", type="in", start_time=0, duration=fade_d)
@@ -361,7 +382,13 @@ def assemble_video_for_row(
         script = parse_script_cell(row.get("Script Vidéo Généré") or "{}")
     except (ValueError, json.JSONDecodeError):
         script = {}
-    scenes = {int(s.get("shot") or i): s for i, s in enumerate(script.get("scenes") or [], start=1)}
+    scenes = {}
+    for i, scene in enumerate(script.get("scenes") or [], start=1):
+        try:
+            shot_n = int(scene.get("shot") or i)
+        except (TypeError, ValueError):
+            shot_n = i
+        scenes[shot_n] = scene
     for clip in clips:
         scene = scenes.get(clip.shot) or {}
         clip.title = str(scene.get("chapter") or scene.get("title") or "")

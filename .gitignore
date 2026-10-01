@@ -33,3 +33,7 @@ token.json
 *.egg-info/
 dist/
 build/
+.coverage
+htmlcov/
+logs/
+*.log

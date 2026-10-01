@@ -1,0 +1,63 @@
+# Cursor indexing / AI context only. Runtime still uses these paths.
+# Keep source, prompts, channel configs, n8n workflows, tests, and docs indexed.
+
+# Python environment and tooling caches (~182MB locally)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Git object store
+.git/
+
+# Secrets
+.env
+.env.local
+.env.*.local
+*credentials*.json
+*credentials*.pem
+google-credentials.json
+service-account*.json
+client_secret*.json
+token.json
+*.pem
+*.key
+
+# Pipeline work product (grows with every collect / render)
+assets_temp/
+output/
+characters/
+
+# Binary media (music bed, TTS, renders, caricatures)
+*.wav
+*.mp3
+*.mp4
+*.webm
+*.mov
+*.mkv
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+
+# Logs and OS junk
+*.log
+logs/
+.DS_Store
+
+# Common leftovers this repo does not use today, but are expensive if they appear
+node_modules/
+.docker/
+vendor/

@@ -10,10 +10,10 @@ from urllib.parse import quote
 from scripts.costs import estimate_cost
 
 CARICATURE_PROMPT = (
-    "Transform this photo into a realistic 3D caricature. Keep the face recognizable "
-    "while exaggerating expression and head size. Preserve skin texture, pores, wrinkles, "
-    "hairstyle, clothing, and posture with a high-end animated film look and detailed, "
-    "lifelike surfaces."
+    "Transform this photo into a wild, high-energy 3D caricature. Keep the face recognizable "
+    "but push it hard: oversized head, huge expression, stretched features, theatrical pose. "
+    "Saturated colors, punchy contrast, animated-film exaggeration — never a polite portrait. "
+    "Preserve hairstyle and clothing enough to identify the person. No text in the image."
 )
 
 REPLICATE_IMG2IMG_DEFAULT = "black-forest-labs/flux-kontext-pro"
@@ -164,7 +164,19 @@ def generate_image(
                 "prompt": prompt,
                 "aspect_ratio": ratio,
             }
-        url = _aimlapi_run(payload)
+        try:
+            url = _aimlapi_run(payload)
+        except RuntimeError as exc:
+            # AIMLAPI cannot fetch Wikimedia/expired refs; still produce a scene via txt2img.
+            if reference_image_url and "Failed to download" in str(exc):
+                payload = {
+                    "model": os.environ.get("AIMLAPI_TXT2IMG_MODEL") or AIMLAPI_TXT2IMG_DEFAULT,
+                    "prompt": prompt,
+                    "aspect_ratio": ratio,
+                }
+                url = _aimlapi_run(payload)
+            else:
+                raise
     else:
         if reference_image_url:
             model = os.environ.get("FAL_IMG2IMG_MODEL") or FAL_IMG2IMG_DEFAULT

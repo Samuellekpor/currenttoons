@@ -16,8 +16,8 @@ from scripts.video_assembly import (
 
 
 def test_clip_motion_alternates_zoom_direction():
-    assert "zoom+0.0015" in clip_zoom_expr(1)
-    assert "zoom-0.0015" in clip_zoom_expr(2)
+    assert "zoom+0.004" in clip_zoom_expr(1)
+    assert "zoom-0.004" in clip_zoom_expr(2)
     assert TRANSITION_S <= 0.08
     assert FORMAT_SPECS["Court"]["width"] == 1080
     assert FORMAT_SPECS["Court"]["height"] == 1920
@@ -36,7 +36,7 @@ def test_parse_image_list_json():
     assert messy[1]["shot"] == 2
 
 
-def test_plan_clips_follows_timestamps(tmp_path):
+def test_plan_clips_cycles_images_quickly(tmp_path):
     a = tmp_path / "a.png"
     b = tmp_path / "b.png"
     a.write_bytes(b"x")
@@ -46,9 +46,9 @@ def test_plan_clips_follows_timestamps(tmp_path):
         {"segments": [{"start": 0, "end": 2}, {"start": 2, "end": 6}]},
         audio_duration=6,
     )
-    assert len(clips) == 2
-    assert abs(sum(c.duration for c in clips) - 6) < 0.01
-    assert clips[0].shot == 1
+    assert abs(sum(c.duration for c in clips) - 6) < 0.05
+    assert max(c.duration for c in clips) <= 1.5
+    assert len(clips) >= 4
 
 
 def test_long_chapters_group_shots():

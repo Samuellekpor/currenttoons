@@ -16,7 +16,9 @@ from scripts.topic_analysis import STATUS_SCRIPT_GENERATED, TOPIC_SHEET_COLUMNS
 VISUAL_PLAN_SYSTEM = """You extract illustration shots from a video script.
 Confirm/refine the listed public figures. Name them in every relevant scene prompt.
 Return JSON: {"characters": ["Full Name"], "shots": [{"shot": 1, "characters": ["Full Name"], "prompt": "scene prompt", "reuse_character": "Full Name or empty"}]}.
-For Court keep 3-5 shots. For Long you may output more, but reuse the same character identity across shots (change setting/pose only).
+For Court output 6-8 shots even if the script has fewer scenes: same character, wildly different crop, pose, and expression each time (extreme close-up, dutch angle, huge reaction, tiny in frame, etc.).
+For Long you may output more, but reuse the same character identity across shots (change setting/pose only).
+Every prompt must demand exaggerated caricature energy, not a calm portrait.
 Do not invent public figures that are not in the script or the provided list.
 """
 
@@ -83,6 +85,11 @@ def extract_visual_plan(
     shots = payload.get("shots") or []
     if video_format == "Court":
         shots = shots[: spec["shot_max"]]
+        if len(shots) < spec["shot_min"] and shots:
+            seed = list(shots)
+            while len(shots) < spec["shot_min"]:
+                src = seed[len(shots) % len(seed)]
+                shots.append({**src, "shot": len(shots) + 1})
     return {"characters": characters, "shots": shots}, cost
 
 
@@ -136,10 +143,14 @@ def generate_images_for_row(
         if names and names[0] in caricatures:
             ref = caricatures[names[0]].get("Caricature URL")
         prompt = str(shot.get("prompt") or "")
+        prompt = (
+            f"{prompt} Exaggerated caricature, huge expression, dramatic 9:16 camera, "
+            "high energy, saturated, never a calm or realistic portrait."
+        )
         if ref:
             prompt = (
                 f"{prompt} Keep the same recognizable caricature identity as the reference image; "
-                "only change setting, camera, and pose."
+                "only change setting, camera, crop, and pose — push the expression harder."
             )
         generated = generate_image(
             prompt,

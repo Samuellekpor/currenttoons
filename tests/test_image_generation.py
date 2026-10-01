@@ -28,8 +28,8 @@ def _row(fmt="Court", images_done=False):
 
 
 def test_caricature_prompt_is_exact():
-    assert CARICATURE_PROMPT.startswith("Transform this photo into a realistic 3D caricature.")
-    assert "high-end animated film look" in CARICATURE_PROMPT
+    assert CARICATURE_PROMPT.startswith("Transform this photo into a wild, high-energy 3D caricature.")
+    assert "oversized head" in CARICATURE_PROMPT
 
 
 def test_generate_image_dry_run_preview():
@@ -44,7 +44,7 @@ def test_currenttoons_preview_reuses_caricature(tmp_path, monkeypatch):
     config = load_channel_config("currenttoons")
     payload = generate_images_for_row(_row("Court"), config=config, dry_run=True)
     assert payload["aspect_ratio"] == "9:16"
-    assert 3 <= len(payload["images"]) <= 5
+    assert 6 <= len(payload["images"]) <= 8
     assert payload["caricatures"]["Emmanuel Macron"].startswith("https://dry-run.local/characters/")
     refs = {img["reference_image_url"] for img in payload["images"]}
     assert refs == {payload["caricatures"]["Emmanuel Macron"]}
@@ -75,6 +75,35 @@ def test_skips_when_images_already_checked():
         assert False, "expected ValueError"
     except ValueError as exc:
         assert "already checked" in str(exc)
+
+
+def test_live_character_bank_skips_dry_run_cache(tmp_path, monkeypatch):
+    from scripts.character_bank import _usable_live_url, get_or_create_caricature, write_local_cache
+
+    assert _usable_live_url("https://dry-run.local/characters/x.png") is False
+    assert _usable_live_url("https://upload.wikimedia.org/foo.jpg") is True
+    monkeypatch.setattr("scripts.character_bank.CHARACTERS_DIR", tmp_path)
+    write_local_cache(
+        {
+            "Nom": "Emmanuel Macron",
+            "Photo Référence URL": "https://dry-run.local/ref.jpg",
+            "Caricature URL": "https://dry-run.local/characters/emmanuel-macron.png",
+            "Date Génération": "2026-01-01",
+            "Nb Utilisations": 3,
+            "Feature Emphasis": "",
+        }
+    )
+    monkeypatch.setattr("scripts.character_bank._backend", lambda: "google_sheets")
+    monkeypatch.setattr("scripts.character_bank._sheets_lookup", lambda _name: None)
+    monkeypatch.setattr("scripts.character_bank._sheets_upsert", lambda record: record)
+    monkeypatch.setattr("scripts.wikimedia.find_wikimedia_portrait", lambda _name: "https://example.com/macron.jpg")
+    monkeypatch.setattr(
+        "scripts.character_bank._generate_caricature",
+        lambda *_args, **_kwargs: "https://cdn.example/macron-caricature.png",
+    )
+    record = get_or_create_caricature("Emmanuel Macron", dry_run=False)
+    assert record["created"] is True
+    assert record["Caricature URL"] == "https://cdn.example/macron-caricature.png"
 
 
 def test_checkbox_helper():

@@ -8,7 +8,7 @@ Règles impératives :
 - Dialogue **rapide et captivant** : phrases courtes, oral, zéro remplissage, presque pas de pause. On enchaîne.
 - Sujet : stars / moments dont tout le monde parle, OU une histoire internet absurde qui arrête le scroll.
 - Respecte le format :
-  - Court : 20-35 secondes, 3 à 5 plans, hook puis punchlines serrées, cadrage vertical 9:16.
+  - Court : 20-35 secondes, 6 à 8 plans visuels, hook puis punchlines serrées, **chaque plan est une caricature extrême** (grimace, gros plan, angle bizarre), cadrage vertical 9:16.
   - Long : 4-8 minutes, hook dans les 5 premières secondes puis plusieurs chapitres sarcastiques, cadrage horizontal 16:9.
 - Chaque description visuelle nomme explicitement chaque personnalité (nom complet) pour la banque de caricatures. S'il n'y a pas de célébrité, invente un type visuel (le voisin, le goéland, le recordman) sans faux nom de star.
 - Réponds uniquement en JSON : title, language, format, aspect_ratio, target_duration, characters, scenes[{shot, duration_s, visual, dialogue}].

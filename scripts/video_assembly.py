@@ -17,8 +17,9 @@ from scripts.script_generation import FORMAT_SPECS, normalize_format
 from scripts.topic_analysis import STATUS_SCRIPT_GENERATED, TOPIC_SHEET_COLUMNS
 from scripts.voiceover import segments_to_srt
 
-TRANSITION_S = 0.06
+TRANSITION_S = 0.04
 MUSIC_VOLUME_DEFAULT = 0.12
+MAX_STILL_HOLD_S = 1.15
 
 # 1x1 PNG (red) used as a dry-run still.
 _TINY_PNG = (
@@ -139,45 +140,38 @@ def plan_clips(
     timestamps: dict[str, Any],
     audio_duration: float,
 ) -> list[Clip]:
-    segments = list(timestamps.get("segments") or [])
-    clips: list[Clip] = []
     if not image_paths:
         raise ValueError("No images to assemble")
-    if segments:
-        for i, (shot, path) in enumerate(image_paths):
-            if i < len(segments):
-                seg = segments[i]
-                start = float(seg.get("start") or 0)
-                end = float(seg.get("end") or start + 2)
-            else:
-                prev = clips[-1]
-                start = prev.start + prev.duration
-                end = start + max(1.0, audio_duration / len(image_paths))
-            clips.append(Clip(path=path, start=start, duration=max(0.4, end - start), shot=shot))
-    else:
-        each = max(0.8, audio_duration / len(image_paths))
-        t = 0.0
-        for shot, path in image_paths:
-            clips.append(Clip(path=path, start=t, duration=each, shot=shot))
-            t += each
-    total = sum(c.duration for c in clips) or 1.0
-    if audio_duration > 0:
-        factor = audio_duration / total
-        t = 0.0
-        fitted = []
-        for clip in clips:
-            duration = max(0.4, clip.duration * factor)
-            fitted.append(Clip(path=clip.path, start=t, duration=duration, shot=clip.shot, title=clip.title))
-            t += duration
-        clips = fitted
+    duration = max(float(audio_duration or 0), 1.0)
+    hold = MAX_STILL_HOLD_S
+    clips: list[Clip] = []
+    t = 0.0
+    i = 0
+    while t < duration - 1e-6:
+        shot, path = image_paths[i % len(image_paths)]
+        remaining = duration - t
+        if remaining < hold * 0.35 and clips:
+            last = clips[-1]
+            clips[-1] = Clip(
+                path=last.path,
+                start=last.start,
+                duration=last.duration + remaining,
+                shot=last.shot,
+                title=last.title,
+            )
+            break
+        dur = min(hold, remaining)
+        clips.append(Clip(path=path, start=t, duration=max(0.35, dur), shot=shot))
+        t += dur
+        i += 1
     return clips
 
 
 def clip_zoom_expr(shot: int) -> str:
-    """Alternate zoom-in / zoom-out so stills feel animated."""
+    """Fast Ken Burns so short holds still move."""
     if int(shot or 1) % 2:
-        return "min(zoom+0.0015,1.12)"
-    return "if(lte(on,1),1.12,max(zoom-0.0015,1.0))"
+        return "min(zoom+0.004,1.2)"
+    return "if(lte(on,1),1.2,max(zoom-0.004,1.0))"
 
 
 def _write_silence_wav(path: Path, duration: float = 4.0, rate: int = 44100) -> None:
@@ -253,19 +247,19 @@ def run_ffmpeg_assembly(
     if not cmd:
         raise FileNotFoundError("ffmpeg is not installed (required for video assembly)")
 
-    fade = TRANSITION_S
     streams = []
-    for clip in clips:
-        fade_d = min(fade, max(0.02, clip.duration / 10))
-        out_start = max(0.0, clip.duration - fade_d)
+    for i, clip in enumerate(clips):
+        unique = clip.path.with_name(f"hold_{i}_{clip.path.name}")
+        if unique.resolve() != clip.path.resolve():
+            shutil.copyfile(clip.path, unique)
         over_w, over_h = int(width * 1.2), int(height * 1.2)
-        video = ffmpeg.input(str(clip.path), loop=1, t=clip.duration, framerate=30)
+        video = ffmpeg.input(str(unique), loop=1, t=clip.duration, framerate=30)
         video = (
             video.video.filter("scale", over_w, over_h, force_original_aspect_ratio="increase")
             .filter("crop", over_w, over_h)
             .filter(
                 "zoompan",
-                z=clip_zoom_expr(clip.shot),
+                z=clip_zoom_expr(clip.shot + i),
                 d=1,
                 x="iw/2-(iw/zoom/2)",
                 y="ih/2-(ih/zoom/2)",
@@ -274,8 +268,6 @@ def run_ffmpeg_assembly(
             )
             .filter("fps", 30)
             .filter("format", "yuv420p")
-            .filter("fade", type="in", start_time=0, duration=fade_d)
-            .filter("fade", type="out", start_time=out_start, duration=fade_d)
         )
         streams.append(video)
     joined = ffmpeg.concat(*streams, v=1, a=0) if len(streams) > 1 else streams[0]

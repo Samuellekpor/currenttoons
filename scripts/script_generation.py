@@ -12,10 +12,10 @@ from scripts.topic_analysis import STATUS_ACCEPTED, STATUS_SCRIPT_GENERATED, TOP
 FORMAT_SPECS = {
     "Court": {
         "duration": "20-35 seconds",
-        "shots": "3-5",
-        "shot_min": 3,
-        "shot_max": 5,
-        "structure": "hook in shot 1 (2s), then rapid punchlines with almost no dead air",
+        "shots": "6-8",
+        "shot_min": 6,
+        "shot_max": 8,
+        "structure": "hook in shot 1 (2s), then rapid punchlines with a new extreme visual every beat",
         "aspect_ratio": "9:16",
         "framing": "vertical 9:16",
         "width": 1080,

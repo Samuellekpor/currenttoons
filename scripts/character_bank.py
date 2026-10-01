@@ -41,6 +41,13 @@ def _slug(name: str) -> str:
     return normalized.strip("-") or "unknown"
 
 
+def _usable_live_url(url: str | None) -> bool:
+    value = str(url or "").strip()
+    if not value or "dry-run.local" in value.lower():
+        return False
+    return value.startswith("http://") or value.startswith("https://")
+
+
 def _local_meta_path(name: str) -> Path:
     return CHARACTERS_DIR / f"{_slug(name)}.json"
 
@@ -197,7 +204,7 @@ def get_or_create_caricature(
     if not dry_run:
         backend = _backend()
         existing = _supabase_lookup(person_name) if backend == "supabase" else _sheets_lookup(person_name)
-        if existing and existing.get("Caricature URL"):
+        if existing and _usable_live_url(existing.get("Caricature URL")):
             existing["Nb Utilisations"] = int(existing.get("Nb Utilisations") or 0) + 1
             existing["created"] = False
             if backend == "supabase":
@@ -208,7 +215,7 @@ def get_or_create_caricature(
             return existing
 
     cached = read_local_cache(person_name)
-    if cached and cached.get("Caricature URL"):
+    if cached and _usable_live_url(cached.get("Caricature URL")):
         cached["Nb Utilisations"] = int(cached.get("Nb Utilisations") or 0) + 1
         cached["created"] = False
         write_local_cache(cached)
@@ -226,6 +233,8 @@ def get_or_create_caricature(
     if existing:
         photo = photo or str(existing.get("Photo Référence URL") or "")
         emphasis = emphasis or str(existing.get("Feature Emphasis") or "")
+    if not _usable_live_url(photo):
+        photo = ""
 
     if not photo:
         from scripts.wikimedia import find_wikimedia_portrait

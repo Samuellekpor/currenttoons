@@ -1,0 +1,15 @@
+---
+description: Commit completed work as a sequence of small git commits
+alwaysApply: true
+---
+
+# Small-step commits
+
+After each requested implementation or fix, commit locally in **small, focused steps**. Do not wait for a later "commit everything" unless the user says not to commit.
+
+- One concern per commit (voiceover, captions, music, tests, docs, config).
+- Follow the repo message style (`feat:`, `fix:`, `docs:`, `chore:`); explain why in 1–2 sentences.
+- Commit as soon as a step is complete and tests for that step pass; then continue.
+- Do not squash unrelated files into one commit.
+- Do not push unless the user asks.
+- Do not commit secrets, `.env`, credentials, or `/output/`.

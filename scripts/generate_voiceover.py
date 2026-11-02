@@ -63,7 +63,7 @@ def load_row(config: dict, row_id: str, *, dry_run: bool, language: str | None):
 
 
 def main() -> int:
-    parser = build_parser("Generate voiceover and opposite-language subtitles")
+    parser = build_parser("Generate voiceover, on-screen captions, and opposite-language subtitles")
     parser.add_argument("--row-id", required=True)
     parser.add_argument("--language", help="Override Langue in dry-run")
     args = parser.parse_args()
@@ -100,6 +100,8 @@ def main() -> int:
                 "voiceover": {
                     "language": payload["language"],
                     "subtitle_language": payload["subtitle_language"],
+                    "caption_language": payload["caption_language"],
+                    "captions_url": payload["captions_url"],
                     "provider": payload["provider"],
                     "audio_url": payload["audio_url"],
                     "timestamps_url": payload["timestamps_url"],

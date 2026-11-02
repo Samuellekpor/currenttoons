@@ -82,9 +82,15 @@ def test_row_pipeline_fr_subtitles_en(tmp_path, monkeypatch):
     assert payload["provider"] == "elevenlabs"
     assert payload["language"] == "FR"
     assert payload["subtitle_language"] == "EN"
+    assert payload["caption_language"] == "FR"
     assert payload["translated_segments"][0]["text"].startswith("[EN]")
     assert "-->" in payload["srt"]
     assert payload["audio_url"].startswith("https://dry-run.local/")
+    captions = tmp_path / "output" / "currenttoons" / "2" / "subtitles_fr.srt"
+    opposite = tmp_path / "output" / "currenttoons" / "2" / "subtitles_en.srt"
+    assert captions.exists()
+    assert "Le budget" in captions.read_text(encoding="utf-8")
+    assert opposite.exists()
 
 
 def test_habitlens_uses_openai_tts():

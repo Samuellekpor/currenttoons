@@ -561,6 +561,7 @@ def generate_voiceover_for_row(
     audio_path = out_dir / "voiceover.mp3"
     ts_path = out_dir / "timestamps.json"
     srt_path = out_dir / f"subtitles_{target.lower()}.srt"
+    captions_path = out_dir / f"subtitles_{language.lower()}.srt"
 
     tts = generate_voiceover(
         extracted["text"],
@@ -579,10 +580,12 @@ def generate_voiceover_for_row(
         dry_run=dry_run,
     )
     srt = segments_to_srt(translated)
+    captions = segments_to_srt(timed)
     ts_path.parent.mkdir(parents=True, exist_ok=True)
     ts_payload = {
         "language": language,
         "subtitle_language": target,
+        "caption_language": language,
         "provider": provider,
         "alignment_source": tts.get("alignment_source"),
         "words": tts["words"],
@@ -591,6 +594,7 @@ def generate_voiceover_for_row(
     }
     ts_path.write_text(json.dumps(ts_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     srt_path.write_text(srt, encoding="utf-8")
+    captions_path.write_text(captions, encoding="utf-8")
 
     def as_url(path: Path) -> str:
         if dry_run:
@@ -601,6 +605,8 @@ def generate_voiceover_for_row(
     return {
         "language": language,
         "subtitle_language": target,
+        "caption_language": language,
+        "captions_url": as_url(captions_path),
         "provider": provider,
         "voice_id": voice_id,
         "text": extracted["text"],

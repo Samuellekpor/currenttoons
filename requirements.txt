@@ -5,6 +5,7 @@ gspread>=6.1.0
 google-auth>=2.34.0
 google-auth-oauthlib>=1.2.0
 ffmpeg-python>=0.2.0
+pillow>=10.4.0
 python-dotenv>=1.0.1
 replicate>=0.32.0
 elevenlabs>=1.7.0

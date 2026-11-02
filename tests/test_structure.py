@@ -4,10 +4,16 @@ from scripts.costs import estimate_cost, load_pricing
 
 
 def test_currenttoons_uses_caricatures():
+    from pathlib import Path
+
+    from scripts.cli import PROJECT_ROOT
+
     config = load_channel_config("currenttoons")
     assert config["uses_caricatures"] is True
     assert config["default_language"] == "fr"
     assert "fr" in config["elevenlabs_voice_id"]
+    assert config["background_music_url"].endswith("currenttoons-bed.wav")
+    assert (PROJECT_ROOT / config["background_music_url"]).exists()
 
 
 def test_habitlens_skips_caricatures():

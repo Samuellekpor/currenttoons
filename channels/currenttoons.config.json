@@ -15,8 +15,8 @@
     "fr": "nova",
     "en": "onyx"
   },
-  "background_music_url": "",
-  "background_music_volume": 0.12,
+  "background_music_url": "assets/music/currenttoons-bed.wav",
+  "background_music_volume": 0.1,
   "default_language": "fr",
   "supported_languages": ["fr", "en"],
   "default_format": "short",

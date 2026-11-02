@@ -57,7 +57,7 @@ Import `workflows/voiceover.json`.
 
 **Action:** `scripts/generate_voiceover.py --channel <channel> --row-id <id>`
 
-Audio + timestamps JSON + `.srt` (langue opposée) dans `output/<channel>/<row-id>/`.
+Audio + timestamps JSON + captions parlées (`subtitles_fr.srt` / `subtitles_en.srt`) + `.srt` langue opposée dans `output/<channel>/<row-id>/`.
 
 ```bash
 .venv/bin/python scripts/generate_voiceover.py --channel currenttoons --row-id 2 --dry-run

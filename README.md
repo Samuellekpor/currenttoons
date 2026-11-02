@@ -25,8 +25,8 @@ Flux prévu :
 2. Tu passes une ligne à `Accepté` **et** tu choisis `Format Vidéo (Court/Long)` + `Langue (FR/EN)` — ces deux champs pilotent la suite.
 3. n8n lance `generate_script.py` → colonne `Script Vidéo Généré`, statut `Script Généré`.
 4. n8n lance `generate_images.py` (previews) si `Images Générées` n'est pas coché.
-5. n8n lance `generate_voiceover.py` (TTS + SRT langue opposée) si `Voix-off Générée` n'est pas coché.
-6. n8n lance `assemble_video.py` (FFmpeg, sous-titres incrustés, 1080x1920 ou 1920x1080).
+5. n8n lance `generate_voiceover.py` (TTS + captions langue parlée + SRT langue opposée) si `Voix-off Générée` n'est pas coché.
+6. n8n lance `assemble_video.py` (FFmpeg, captions parlées incrustées, 1080x1920 ou 1920x1080).
 7. n8n lance `publish_video.py` (YouTube non répertorié, TikTok brouillon, IG conteneur) puis Telegram.
 8. Le webhook `publish_confirmed` bascule en public (`confirm_publish.py`).
 9. Chaque étape incrémente `Coût Estimé (€)` à partir de `scripts/pricing.json`.
@@ -103,8 +103,8 @@ Sans `--dry-run`, NewsAPI / AIMLAPI (ou OpenAI / Replicate / fal) sont appelés.
 - Script : `prompts/<channel>_script_generation.md` (CurrentToons : sketch humoristique sur le moment viral).
 - Les lignes Sheet en statut `Rejeté` sont **supprimées** au prochain `collect_topics.py`.
 - Images : `get_or_create_caricature` (Wikimedia + img2img, réutilisation banque) puis `generate_image(..., quality=preview)`.
-- Voix-off : ElevenLabs (CurrentToons, timestamps natifs) ou OpenAI `tts-1` (HabitLens : nova FR / onyx EN) + SRT dans la langue opposée via `gpt-4o-mini`.
-- Montage : FFmpeg (`1080x1920` court / `1920x1080` long), synchro timestamps, sous-titres langue opposée incrustés, musique de fond, chapitres YouTube (format long).
+- Voix-off : ElevenLabs (CurrentToons, timestamps natifs) ou OpenAI `tts-1` (HabitLens : nova FR / onyx EN) + captions à l'écran dans la langue parlée, SRT langue opposée via `gpt-4o-mini`.
+- Montage : FFmpeg (`1080x1920` court / `1920x1080` long), synchro timestamps, captions parlées incrustées (`subtitles` ou `drawtext` si libass absent), musique de fond, chapitres YouTube (format long).
 - Publication : YouTube non répertorié + TikTok `SELF_ONLY` + IG conteneur non publié ; validation Telegram ; `x_auto_publish` (défaut `false`).
 - n8n : voir `workflows/README.md`.
 

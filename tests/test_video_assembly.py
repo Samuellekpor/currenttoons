@@ -8,11 +8,45 @@ from scripts.video_assembly import (
     chapters_from_clips,
     clip_zoom_expr,
     parse_image_list,
+    parse_srt_cues,
     plan_clips,
+    spoken_caption_segments,
     youtube_chapters_text,
     Clip,
     TRANSITION_S,
 )
+
+
+def test_parse_srt_and_spoken_captions():
+    srt = "1\n00:00:00,000 --> 00:00:01,200\nLe hook explose\n\n2\n00:00:01,200 --> 00:00:02,000\nChute\n"
+    cues = parse_srt_cues(srt)
+    assert cues[0]["text"] == "Le hook explose"
+    assert abs(cues[0]["end"] - 1.2) < 0.001
+    spoken = spoken_caption_segments(
+        {"segments": [{"start": 0, "end": 1, "text": "Bonjour"}, {"start": 1, "end": 1, "text": ""}]}
+    )
+    assert len(spoken) == 1
+    assert spoken[0]["end"] > spoken[0]["start"]
+    chunked = spoken_caption_segments(
+        {
+            "segments": [
+                {
+                    "text": "Mes chers compatriotes il est temps",
+                    "words": [
+                        {"word": "Mes", "start": 0.0, "end": 0.2},
+                        {"word": "chers", "start": 0.2, "end": 0.4},
+                        {"word": "compatriotes", "start": 0.4, "end": 0.8},
+                        {"word": "il", "start": 0.8, "end": 1.0},
+                        {"word": "est", "start": 1.0, "end": 1.2},
+                        {"word": "temps", "start": 1.2, "end": 1.5},
+                        {"word": "de", "start": 1.5, "end": 1.7},
+                    ],
+                }
+            ]
+        }
+    )
+    assert len(chunked) == 2
+    assert chunked[0]["text"].startswith("Mes chers")
 
 
 def test_clip_motion_alternates_zoom_direction():
@@ -83,6 +117,7 @@ def test_assemble_dry_run_writes_video(tmp_path, monkeypatch):
     assert payload["width"] == 1080
     assert payload["height"] == 1920
     assert payload["subtitles_burned"] is True
+    assert payload["caption_method"] in {"srt", "subtitles", "drawtext", "overlay"}
     assert payload["video_url"].endswith("final.mp4")
     video = tmp_path / "output" / "currenttoons" / "2" / "final.mp4"
     assert video.exists()

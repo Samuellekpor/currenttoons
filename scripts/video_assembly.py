@@ -1,4 +1,4 @@
-"""Assemble a final video (short 9:16 or long 16:9) with burned-in opposite-language subtitles."""
+"""Assemble a final video (short 9:16 or long 16:9) with burned-in spoken-language captions."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 from scripts.cli import PROJECT_ROOT
 from scripts.costs import add_video_cost, estimate_cost
 from scripts.image_generation import is_flag_checked, parse_script_cell
-from scripts.script_generation import FORMAT_SPECS, normalize_format
+from scripts.script_generation import FORMAT_SPECS, normalize_format, normalize_language
 from scripts.topic_analysis import STATUS_SCRIPT_GENERATED, TOPIC_SHEET_COLUMNS
 from scripts.voiceover import segments_to_srt
 
@@ -62,6 +62,195 @@ def ffmpeg_has_filter(name: str) -> bool:
         if len(parts) >= 2 and parts[1] == name:
             return True
     return False
+
+
+def caption_font_file() -> str | None:
+    candidates = (
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/Library/Fonts/Arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    )
+    for path in candidates:
+        if Path(path).exists():
+            return path
+    return None
+
+
+def parse_srt_cues(text: str) -> list[dict[str, Any]]:
+    cues: list[dict[str, Any]] = []
+    for block in str(text or "").strip().split("\n\n"):
+        lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+        if len(lines) < 2:
+            continue
+        timing = lines[0] if "-->" in lines[0] else (lines[1] if len(lines) > 1 else "")
+        body_lines = lines[1:] if "-->" in lines[0] else lines[2:]
+        if "-->" not in timing:
+            continue
+        start_raw, end_raw = [part.strip() for part in timing.split("-->", 1)]
+        cues.append(
+            {
+                "start": _srt_stamp_to_seconds(start_raw),
+                "end": _srt_stamp_to_seconds(end_raw),
+                "text": " ".join(body_lines).strip(),
+            }
+        )
+    return [c for c in cues if c["text"]]
+
+
+def _srt_stamp_to_seconds(stamp: str) -> float:
+    stamp = stamp.replace(".", ",")
+    time_part, _, millis = stamp.partition(",")
+    hours, minutes, secs = (time_part.split(":") + ["0", "0", "0"])[:3]
+    return int(hours) * 3600 + int(minutes) * 60 + int(secs) + int(millis or "0") / 1000
+
+
+def _wrap_caption(text: str, width: int = 28) -> str:
+    words = str(text or "").split()
+    lines: list[str] = []
+    current: list[str] = []
+    for word in words:
+        trial = " ".join(current + [word])
+        if len(trial) > width and current:
+            lines.append(" ".join(current))
+            current = [word]
+        else:
+            current.append(word)
+    if current:
+        lines.append(" ".join(current))
+    return "\n".join(lines[:3])
+
+
+def _escape_drawtext(text: str) -> str:
+    cleaned = _wrap_caption(text)
+    return (
+        cleaned.replace("\\", "\\\\")
+        .replace(":", "\\:")
+        .replace("'", "\u2019")
+        .replace("%", "\\%")
+    )
+
+
+def spoken_caption_segments(timestamps: dict[str, Any]) -> list[dict[str, Any]]:
+    cues: list[dict[str, Any]] = []
+    for seg in timestamps.get("segments") or []:
+        words = [w for w in (seg.get("words") or []) if str(w.get("word") or "").strip()]
+        if words:
+            buf: list[str] = []
+            start: float | None = None
+            end = 0.0
+            for word in words:
+                token = str(word.get("word") or "").strip()
+                w_start = float(word.get("start") or 0)
+                w_end = float(word.get("end") or w_start)
+                if start is None:
+                    start = w_start
+                buf.append(token)
+                end = w_end
+                if len(buf) >= 6 or (end - start) >= 2.2:
+                    cues.append({"start": start, "end": max(end, start + 0.4), "text": " ".join(buf)})
+                    buf = []
+                    start = None
+            if buf and start is not None:
+                cues.append({"start": start, "end": max(end, start + 0.4), "text": " ".join(buf)})
+            continue
+        text = str(seg.get("text") or "").strip()
+        if not text:
+            continue
+        start = float(seg.get("start") or 0)
+        end = float(seg.get("end") or start + 1.2)
+        if end <= start:
+            end = start + 0.6
+        cues.append({"start": start, "end": end, "text": text})
+    return cues
+
+
+def render_caption_png(text: str, dest: Path, *, fontsize: int) -> Path:
+    from PIL import Image, ImageDraw, ImageFont
+
+    wrapped = _wrap_caption(text, width=22)
+    font_path = caption_font_file()
+    try:
+        font = ImageFont.truetype(font_path, fontsize) if font_path else ImageFont.load_default()
+    except OSError:
+        font = ImageFont.load_default()
+    probe = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(probe)
+    bbox = draw.multiline_textbbox((0, 0), wrapped, font=font, align="center", spacing=10)
+    tw, th = max(1, int(bbox[2] - bbox[0])), max(1, int(bbox[3] - bbox[1]))
+    pad = 28
+    img = Image.new("RGBA", (tw + pad * 2, th + pad * 2), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    x, y = int(pad - bbox[0]), int(pad - bbox[1])
+    for dx in range(-5, 6):
+        for dy in range(-5, 6):
+            if dx * dx + dy * dy > 25:
+                continue
+            draw.multiline_text((x + dx, y + dy), wrapped, font=font, fill=(0, 0, 0, 255), align="center", spacing=10)
+    draw.multiline_text((x, y), wrapped, font=font, fill=(255, 255, 255, 255), align="center", spacing=10)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    img.save(dest)
+    return dest
+
+
+def apply_burned_captions(joined: Any, srt_path: Path, *, width: int, height: int) -> tuple[Any, bool, str]:
+    """Burn spoken captions. Prefer libass, then drawtext, then PNG overlay."""
+    if not srt_path or not srt_path.exists() or srt_path.stat().st_size <= 0:
+        return joined, False, "none"
+    if ffmpeg_has_filter("subtitles"):
+        joined = joined.filter(
+            "subtitles",
+            filename=str(srt_path.resolve()),
+            force_style=(
+                "FontName=Arial,FontSize=22,Alignment=2,Outline=3,Shadow=0,MarginV=80,"
+                "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Bold=1"
+            ),
+        )
+        return joined, True, "subtitles"
+    cues = parse_srt_cues(srt_path.read_text(encoding="utf-8"))[:24]
+    if not cues:
+        return joined, False, "none"
+    if ffmpeg_has_filter("drawtext"):
+        font = caption_font_file()
+        fontsize = 56 if height >= 1600 else 36
+        y = "h-h*0.14"
+        for cue in cues:
+            kwargs = {
+                "text": _escape_drawtext(cue["text"]),
+                "fontsize": fontsize,
+                "fontcolor": "white",
+                "borderw": 5,
+                "bordercolor": "black",
+                "x": "(w-text_w)/2",
+                "y": y,
+                "enable": f"between(t,{cue['start']:.3f},{cue['end']:.3f})",
+            }
+            if font:
+                kwargs["fontfile"] = font
+            joined = joined.filter("drawtext", **kwargs)
+        return joined, True, "drawtext"
+    if ffmpeg_has_filter("overlay"):
+        import ffmpeg
+
+        fontsize = 64 if height >= 1600 else 40
+        overlay_dir = srt_path.parent / "caption_overlays"
+        for i, cue in enumerate(cues):
+            png = overlay_dir / f"cue_{i:02d}.png"
+            render_caption_png(cue["text"], png, fontsize=fontsize)
+            layer = ffmpeg.input(str(png), loop=1, framerate=30)
+            joined = ffmpeg.filter(
+                [joined, layer],
+                "overlay",
+                x="(W-w)/2",
+                y="H-h-160",
+                enable=f"between(t,{cue['start']:.3f},{cue['end']:.3f})",
+                eof_action="pass",
+                repeatlast=0,
+            )
+        return joined, True, "overlay"
+    return joined, False, "none"
 
 
 def parse_image_list(raw: Any) -> list[dict[str, Any]]:
@@ -240,7 +429,7 @@ def run_ffmpeg_assembly(
     height: int,
     output_path: Path,
     chapters_meta: Path | None = None,
-) -> None:
+) -> tuple[bool, str]:
     import ffmpeg
 
     cmd = ffmpeg_cmd()
@@ -271,16 +460,7 @@ def run_ffmpeg_assembly(
         )
         streams.append(video)
     joined = ffmpeg.concat(*streams, v=1, a=0) if len(streams) > 1 else streams[0]
-    burned = False
-    if srt_path and srt_path.exists() and srt_path.stat().st_size > 0 and ffmpeg_has_filter("subtitles"):
-        # FFmpeg 7+ needs filename=; a bare /Users/... path is parsed as filter options.
-        # Homebrew ffmpeg 9 often ships without libass, so the subtitles filter is absent.
-        joined = joined.filter(
-            "subtitles",
-            filename=str(srt_path.resolve()),
-            force_style="FontName=Arial,FontSize=18,Alignment=2,Outline=2,MarginV=48,PrimaryColour=&H00FFFFFF",
-        )
-        burned = True
+    joined, burned, method = apply_burned_captions(joined, srt_path, width=width, height=height)
 
     voice = ffmpeg.input(str(voice_path)).audio
     if music_path and music_path.exists():
@@ -307,7 +487,7 @@ def run_ffmpeg_assembly(
         detail = (exc.stderr or b"").decode("utf-8", errors="replace").strip().splitlines()
         hint = detail[-1] if detail else str(exc)
         raise RuntimeError(f"ffmpeg failed: {hint}") from exc
-    return burned
+    return burned, method
 
 
 def assemble_video_for_row(
@@ -362,11 +542,26 @@ def assemble_video_for_row(
     if audio_duration <= 0:
         audio_duration = sum(float(s.get("duration_s") or 2) for s in (parse_script_cell(row.get("Script Vidéo Généré") or "{}").get("scenes") or [])) or 6.0
 
-    srt_path = materialize_asset(
+    opposite_srt = materialize_asset(
         str(row.get("URL Sous-titres (langue opposée)") or ""),
-        work_dir / "subtitles.srt",
+        work_dir / "subtitles_opposite.srt",
         kind="srt",
     )
+    spoken = spoken_caption_segments(timestamps)
+    captions_path = work_dir / "captions_spoken.srt"
+    lang = "fr"
+    try:
+        lang = normalize_language(row.get("Langue (FR/EN)") or timestamps.get("caption_language") or timestamps.get("language") or "FR").lower()
+    except ValueError:
+        lang = "fr"
+    persisted_captions = out_dir / f"subtitles_{lang}.srt"
+    if spoken:
+        captions_path.write_text(segments_to_srt(spoken), encoding="utf-8")
+        persisted_captions.write_text(captions_path.read_text(encoding="utf-8"), encoding="utf-8")
+    elif persisted_captions.exists() and persisted_captions.stat().st_size > 0:
+        captions_path.write_text(persisted_captions.read_text(encoding="utf-8"), encoding="utf-8")
+    else:
+        captions_path = opposite_srt
 
     clips = plan_clips(image_paths, timestamps, audio_duration)
     script = {}
@@ -399,16 +594,17 @@ def assemble_video_for_row(
 
     output_path = out_dir / "final.mp4"
     encoded_with_ffmpeg = False
-    burned = bool(srt_path and srt_path.exists() and srt_path.stat().st_size > 0)
+    burned = bool(captions_path.exists() and captions_path.stat().st_size > 0)
+    caption_method = "srt" if burned else "none"
     try:
         if dry_run:
             # Fake assets are 1x1 PNGs; skip a real encode. Live runs use ffmpeg.
             output_path.write_bytes(b"dry-run-mp4-placeholder")
         else:
-            burned = run_ffmpeg_assembly(
+            burned, caption_method = run_ffmpeg_assembly(
                 clips,
                 voice_path=voice_path,
-                srt_path=srt_path,
+                srt_path=captions_path,
                 music_path=music_path,
                 music_volume=volume,
                 width=width,
@@ -432,6 +628,7 @@ def assemble_video_for_row(
         "chapters_url": (f"https://dry-run.local/{chapters_txt.relative_to(PROJECT_ROOT).as_posix()}" if dry_run else chapters_txt.relative_to(PROJECT_ROOT).as_posix()),
         "video_url": video_url,
         "subtitles_burned": burned,
+        "caption_method": caption_method,
         "encoded_with_ffmpeg": encoded_with_ffmpeg,
         "cost_eur": 0.0 if dry_run else estimate_cost("video_assembly"),
         "dry_run": dry_run,

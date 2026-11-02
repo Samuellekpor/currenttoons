@@ -77,7 +77,7 @@ def load_row(config: dict, row_id: str, *, dry_run: bool, video_format: str | No
 
 
 def main() -> int:
-    parser = build_parser("Assemble the final video with burned-in opposite-language subtitles")
+    parser = build_parser("Assemble the final video with burned-in spoken-language captions")
     parser.add_argument("--row-id", required=True)
     parser.add_argument("--format", dest="video_format", help="Override Format Vidéo in dry-run")
     args = parser.parse_args()
